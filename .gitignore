@@ -1,6 +1,6 @@
 .tools/
-mini-rpki.exe
-mini-rpki
+/mini-rpki.exe
+/mini-rpki
 *.test
 data/
 clab-*/

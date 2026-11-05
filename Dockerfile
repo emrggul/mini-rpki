@@ -5,6 +5,7 @@ COPY cmd ./cmd
 COPY internal ./internal
 RUN go test ./... && CGO_ENABLED=0 go build -trimpath -ldflags='-s -w' -o /mini-rpki ./cmd/mini-rpki
 FROM alpine:3.23
+LABEL org.opencontainers.image.source="https://github.com/emrggul/mini-rpki"
 RUN addgroup -g 10001 mini && adduser -D -H -u 10001 -G mini mini && mkdir -p /data /run/minirpki && chown mini:mini /data /run/minirpki
 COPY --from=build /mini-rpki /usr/local/bin/mini-rpki
 COPY docker/shell.sh /etc/mini-rpki-shell.sh

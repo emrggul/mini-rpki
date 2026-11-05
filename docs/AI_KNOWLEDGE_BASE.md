@@ -70,7 +70,7 @@ The user wants FRR show commands inside vtysh, not just wrappers that hide the r
 
 ## Cache and protocol invariants
 
-RTR version 1 supports Reset/Serial Query, Cache Response, IPv4/IPv6 announcement and withdrawal, End of Data, Serial Notify, Cache Reset responses, and Error Reports. Version 0, Router Keys, TLS, SSH, cryptographic validation, and fault injection are unsupported.
+RTR version 0 (RFC 6810) is the default and RTR version 1 (RFC 8210) is selectable with `--rtr-version 1` or `MINIRPKI_RTR_VERSION=1`. Both support Reset/Serial Query, Cache Response, IPv4/IPv6 announcement and withdrawal, End of Data, Serial Notify, Cache Reset responses, and Error Reports. The selected version is process-wide. Version 0 End of Data contains only the serial; version 1 adds timers. Router Keys, TLS, SSH, cryptographic validation, and fault injection are unsupported.
 
 Input PDUs are limited to 4096 bytes. The codec handles partial reads/writes and preserves malformed input bytes for Error Report encapsulation. Avoid error-report loops. Cache Reset is a response to an unavailable incremental update, not an unsolicited notification.
 

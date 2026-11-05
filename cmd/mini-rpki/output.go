@@ -65,7 +65,7 @@ func renderResponse(w io.Writer, action string, data []byte, jsonOutput bool) er
 		if err := json.Unmarshal(data, &status); err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "MiniRPKI laboratory RTR cache\nSession ID: %d\nSerial: %d\nRecords served: %d\nConnected routers: %d\nRTR timers: refresh %ds, retry %ds, expire %ds\nSerial Notify limit: once per minute per connection\n", status.Session, status.Serial, status.Records, len(status.Clients), status.Refresh, status.Retry, status.Expire)
+		fmt.Fprintf(w, "MiniRPKI laboratory RTR cache\nRTR protocol version: %d\nSession ID: %d\nSerial: %d\nRecords served: %d\nConnected routers: %d\nRTR timers: refresh %ds, retry %ds, expire %ds\nSerial Notify limit: once per minute per connection\n", status.Version, status.Session, status.Serial, status.Records, len(status.Clients), status.Refresh, status.Retry, status.Expire)
 		if len(status.Clients) == 0 {
 			fmt.Fprintln(w, "No routers connected.")
 			break

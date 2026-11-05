@@ -73,18 +73,24 @@ func Write(w io.Writer, p PDU) error {
 	return nil
 }
 func New(t uint8, f uint16, values ...uint32) PDU {
-	p := PDU{Version: 1, Type: t, Field: f, Body: make([]byte, 4*len(values))}
+	return NewVersion(1, t, f, values...)
+}
+func NewVersion(version, t uint8, f uint16, values ...uint32) PDU {
+	p := PDU{Version: version, Type: t, Field: f, Body: make([]byte, 4*len(values))}
 	for i, v := range values {
 		be.PutUint32(p.Body[i*4:], v)
 	}
 	return p
 }
 func Prefix(r vrp.Record, announce bool) PDU {
+	return PrefixVersion(1, r, announce)
+}
+func PrefixVersion(version uint8, r vrp.Record, announce bool) PDU {
 	n, t := 4, uint8(IPv4)
 	if r.Prefix.Addr().Is6() {
 		n, t = 16, IPv6
 	}
-	p := PDU{Version: 1, Type: t, Body: make([]byte, 8+n)}
+	p := PDU{Version: version, Type: t, Body: make([]byte, 8+n)}
 	if announce {
 		p.Body[0] = 1
 	}
@@ -95,6 +101,9 @@ func Prefix(r vrp.Record, announce bool) PDU {
 	return p
 }
 func Error(code uint16, p PDU, message string) PDU {
+	return ErrorVersion(1, code, p, message)
+}
+func ErrorVersion(version uint8, code uint16, p PDU, message string) PDU {
 	raw := p.Bytes()
 	if p.raw != nil {
 		raw = p.raw
@@ -104,5 +113,15 @@ func Error(code uint16, p PDU, message string) PDU {
 	copy(b[4:], raw)
 	be.PutUint32(b[4+len(raw):], uint32(len(message)))
 	copy(b[8+len(raw):], message)
-	return PDU{Version: 1, Type: ErrorReport, Field: code, Body: b}
+	return PDU{Version: version, Type: ErrorReport, Field: code, Body: b}
+}
+
+// EndOfDataVersion encodes the protocol-version-specific End of Data PDU.
+// RTR v0 (RFC 6810) carries only the serial number; RTR v1 (RFC 8210)
+// additionally carries refresh, retry, and expire intervals.
+func EndOfDataVersion(version uint8, session uint16, serial, refresh, retry, expire uint32) PDU {
+	if version == 0 {
+		return NewVersion(0, EndOfData, session, serial)
+	}
+	return NewVersion(version, EndOfData, session, serial, refresh, retry, expire)
 }

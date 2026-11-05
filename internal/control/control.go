@@ -23,6 +23,7 @@ type Status struct {
 	Serial  uint32       `json:"serial"`
 	Records int          `json:"records"`
 	Clients []rtr.Client `json:"clients"`
+	Version uint8        `json:"rtrVersion"`
 	Refresh uint32       `json:"refreshSeconds"`
 	Retry   uint32       `json:"retrySeconds"`
 	Expire  uint32       `json:"expireSeconds"`
@@ -59,7 +60,7 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		session, serial, rs := a.Store.State()
 		result = Status{
 			Session: session, Serial: serial, Records: len(rs), Clients: a.RTR.Clients(),
-			Refresh: a.RTR.RefreshInterval(), Retry: rtr.RetryInterval, Expire: rtr.ExpireInterval,
+			Version: a.RTR.RTRVersion(), Refresh: a.RTR.RefreshInterval(), Retry: rtr.RetryInterval, Expire: rtr.ExpireInterval,
 		}
 	case "list":
 		_, _, result = a.Store.State()

@@ -35,7 +35,7 @@ flowchart TB
     Caller <-->|"JSON over HTTP over Unix socket"| API
     Store -->|"Save changed records"| Disk
     Disk -->|"Load at startup"| Store
-    Codec <-->|"RTR v1 over TCP 8282"| FRR
+    Codec <-->|"RTR v0 default / v1 optional over TCP 8282"| FRR
     Peer -->|"BGP routes"| FRR
 ```
 
@@ -174,7 +174,7 @@ Two files divide protocol responsibilities:
 
 The **codec understands bytes and fields**. The **server understands the RTR conversation**.
 
-These files, together with the store's session, serial, and delta handling, implement the RTR v1 behavior associated with RFC 8210. Detailed message flow and compliance limits belong in Lesson 2; this overview is not a claim of complete RFC compliance.
+These files, together with the store's session, serial, and delta handling, implement RTR v0 (RFC 6810, the default) and selectable RTR v1 (RFC 8210) behavior. Detailed message flow and compliance limits belong in Lesson 2; this overview is not a claim of complete RFC compliance.
 
 ## 4. What happens at startup?
 
@@ -186,7 +186,7 @@ mini-rpki serve
 
 `run()` performs these steps in order:
 
-1. **Reads options and environment variables.** Defaults include TCP `:8282`, data file `/data/vrps.json`, and a five-second refresh interval. The application's default control socket is `/data/control.sock`; the Containerlab image overrides it to `/run/minirpki/control.sock`.
+1. **Reads options and environment variables.** Defaults include TCP `:8282`, data file `/data/vrps.json`, a five-second refresh interval, and RTR v0. `--rtr-version 1` or `MINIRPKI_RTR_VERSION=1` selects RTR v1. The application's default control socket is `/data/control.sock`; the Containerlab image overrides it to `/run/minirpki/control.sock`.
 2. **Opens the VRP store.** `vrp.Open()` generates a random 16-bit session ID, starts the serial at `1`, and loads the saved records. If the file is missing, it uses `vrp.DemoRecords()` from [internal/vrp/defaults.go](../internal/vrp/defaults.go). A saved empty dataset stays empty. Malformed saved data causes startup to fail. Loading defaults does not itself write the file; a subsequent record change triggers persistence.
 3. **Creates the management socket.** `control.Listen()` creates the Unix listener.
 4. **Creates the RTR TCP listener.** `net.Listen("tcp", ...)` asks the operating system to bind the address and port.
@@ -239,7 +239,7 @@ The links and mounted directories are defined in [lab/containerlab/minirpki.clab
 
 The repository contains `vrp.ValidateRoute()` and `internal/scenario`, but their current use is in tests. They do not make the running server evaluate FRR's BGP routes. No scenario menu is exposed by the current CLI.
 
-Implemented features include operator-managed IPv4/IPv6 VRPs, local management commands, JSON persistence, and RTR v1 query/update handling. Repository downloading, ROA signature validation, RTR v0, Router Key distribution, and RTR TLS/SSH transport are not implemented. Their absence does not imply that they are planned.
+Implemented features include operator-managed IPv4/IPv6 VRPs, local management commands, JSON persistence, and RTR v0 (default) / RTR v1 query-update handling. Repository downloading, ROA signature validation, Router Key distribution, and RTR TLS/SSH transport are not implemented. Their absence does not imply that they are planned.
 
 ## 7. Your source-reading map
 

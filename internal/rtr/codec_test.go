@@ -29,6 +29,12 @@ func TestPrefixEncoding(t *testing.T) {
 		}
 	}
 }
+func TestVersionZeroEndOfDataEncoding(t *testing.T) {
+	p := EndOfDataVersion(0, 42, 99, 5, 10, 600)
+	if got, want := hex.EncodeToString(p.Bytes()), "0007002a0000000c00000063"; got != want {
+		t.Fatalf("%s != %s", got, want)
+	}
+}
 
 type slowReader struct{ io.Reader }
 

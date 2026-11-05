@@ -17,7 +17,9 @@ func startWithRefresh(t *testing.T, refresh uint32) (*Server, string) {
 	if e != nil {
 		t.Fatal(e)
 	}
-	s := &Server{Store: store, Refresh: refresh}
+	// Existing exchange tests cover RFC 8210. RTR v0 has a dedicated test
+	// below; production's zero-value default is RTR v0.
+	s := &Server{Store: store, Refresh: refresh, ProtocolVersion: 1}
 	l, e := net.Listen("tcp", "127.0.0.1:0")
 	if e != nil {
 		t.Fatal(e)
@@ -123,6 +125,37 @@ func TestVersions(t *testing.T) {
 	Write(c, p)
 	if receive(t, c, ErrorReport).Field != 8 {
 		t.Fatal("unexpected version")
+	}
+}
+func TestVersionZeroDowngradeAndEndOfData(t *testing.T) {
+	store, err := vrp.Open("", []vrp.Record{{Prefix: netip.MustParsePrefix("192.0.2.0/24"), MaxLen: 24, ASN: 65001}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	s := &Server{Store: store} // Zero value deliberately means RTR v0.
+	l, err := net.Listen("tcp", "127.0.0.1:0")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- s.Serve(ctx, l) }()
+	t.Cleanup(func() { cancel(); <-done })
+	c := connect(t, l.Addr().String())
+	// A v1 router's initial query is answered in v0, which is the RFC 8210
+	// downgrade mechanism for a cache configured as v0-only.
+	Write(c, New(ResetQuery, 0))
+	response := receive(t, c, CacheResponse)
+	if response.Version != 0 {
+		t.Fatalf("response version=%d, want 0", response.Version)
+	}
+	prefix := receive(t, c, IPv4)
+	if prefix.Version != 0 {
+		t.Fatalf("prefix version=%d, want 0", prefix.Version)
+	}
+	end := receive(t, c, EndOfData)
+	if end.Version != 0 || len(end.Body) != 4 {
+		t.Fatalf("v0 End of Data = version %d body length %d, want version 0 length 4", end.Version, len(end.Body))
 	}
 }
 func TestConcurrentClients(t *testing.T) {

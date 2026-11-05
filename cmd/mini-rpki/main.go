@@ -44,7 +44,7 @@ func run(args []string) error {
 	args = filtered
 	if len(args) == 0 || args[0] == "--help" || args[0] == "help" {
 		fmt.Println(`MiniRPKI: laboratory RTR cache, never a production validator.
-mini-rpki serve [--listen :8282] [--data /data/vrps.json] [--socket /data/control.sock] [--refresh 5]
+mini-rpki serve [--listen :8282] [--data /data/vrps.json] [--socket /data/control.sock] [--refresh 5] [--rtr-version 0]
 mini-rpki add PREFIX --asn ASN [--maxlen LENGTH]
 mini-rpki remove PREFIX --asn ASN [--maxlen LENGTH]
 mini-rpki list
@@ -54,7 +54,7 @@ mini-rpki interface
 Example: mini-rpki add 192.0.2.0/24 --asn 65001
 Maximum length defaults to the prefix length. Remove requires the exact record.
 Output: readable tables by default; append --json for scripts.
-Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH`)
+Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH, MINIRPKI_RTR_VERSION`)
 		return nil
 	}
 	if args[0] == "serve" {
@@ -63,6 +63,7 @@ Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH`)
 		data := f.String("data", env("MINIRPKI_DATA", "/data/vrps.json"), "JSON persistence path")
 		sock := f.String("socket", socket, "local Unix control socket")
 		refreshFlag := f.String("refresh", env("MINIRPKI_REFRESH", "5"), "RTR refresh interval in seconds (1..599)")
+		versionFlag := f.String("rtr-version", env("MINIRPKI_RTR_VERSION", "0"), "RTR protocol version: 0 (RFC 6810) or 1 (RFC 8210)")
 		if err := f.Parse(args[1:]); err != nil {
 			return err
 		}
@@ -72,6 +73,10 @@ Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH`)
 		refresh, err := strconv.ParseUint(*refreshFlag, 10, 32)
 		if err != nil || refresh < 1 || refresh >= uint64(rtr.ExpireInterval) {
 			return fmt.Errorf("--refresh / MINIRPKI_REFRESH must be 1..599 seconds")
+		}
+		version, err := strconv.ParseUint(*versionFlag, 10, 8)
+		if err != nil || version > 1 {
+			return fmt.Errorf("--rtr-version / MINIRPKI_RTR_VERSION must be 0 or 1")
 		}
 		s, err := vrp.Open(*data, vrp.DemoRecords())
 		if err != nil {
@@ -93,7 +98,7 @@ Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH`)
 		defer l.Close()
 		ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 		defer stop()
-		server := &rtr.Server{Store: s, Refresh: uint32(refresh)}
+		server := &rtr.Server{Store: s, Refresh: uint32(refresh), ProtocolVersion: uint8(version)}
 		api := &http.Server{Handler: control.API{Store: s, RTR: server}, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 4096}
 		go func() {
 			if e := api.Serve(cl); e != nil && e != http.ErrServerClosed {
@@ -107,7 +112,7 @@ Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH`)
 			defer cancel()
 			api.Shutdown(c)
 		}()
-		log.Printf("LAB ONLY RTR listening=%s control=%s", *addr, *sock)
+		log.Printf("LAB ONLY RTR version=%d listening=%s control=%s", version, *addr, *sock)
 		return server.Serve(ctx, l)
 	}
 	q, err := parseRequest(args)

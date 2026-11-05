@@ -43,13 +43,13 @@ You do not need to memorize Go syntax. Concentrate first on data flow, ownership
 
 # Part 1 — What MiniRPKI is
 
-MiniRPKI is a laboratory **RPKI-to-Router (RTR) cache**. An operator enters VRPs, MiniRPKI stores them, and routers retrieve them using RTR version 1.
+MiniRPKI is a laboratory **RPKI-to-Router (RTR) cache**. An operator enters VRPs, MiniRPKI stores them, and routers retrieve them using RTR v0 by default or explicitly selected RTR v1.
 
 MiniRPKI does:
 
 - accept operator-defined IPv4 and IPv6 VRPs;
 - persist those records as JSON;
-- serve full and incremental datasets over RTR version 1;
+- serve full and incremental datasets over RTR v0 (default) or RTR v1;
 - notify connected routers that a newer serial exists;
 - expose local commands through a Unix domain socket.
 
@@ -59,7 +59,7 @@ MiniRPKI does not:
 - validate certificates, manifests, CRLs, or ROA signatures;
 - originate or receive BGP routes;
 - assign validation states to live BGP routes;
-- implement RTR version 0, Router Key PDUs, TLS, or SSH transport.
+- distribute Router Key PDUs or implement TLS or SSH transport.
 
 FRRouting compares BGP routes with the VRPs and calculates **Valid**, **Invalid**, or **Not Found**. MiniRPKI supplies VRP data only.
 
@@ -87,7 +87,7 @@ flowchart LR
     Operator -->|one-line command| CLI
     CLI <-->|"HTTP/JSON over Unix socket"| Control
     Store <-->|"load at startup / save on change"| Disk
-    Codec <-->|"RTR v1 over TCP 8282"| FRR
+    Codec <-->|"RTR v0 default / v1 optional over TCP 8282"| FRR
     BGP --> FRR
     FRR --> Result["FRR computes route validation state"]
 ```
@@ -97,7 +97,7 @@ There are two separate communication paths:
 | Path | Endpoints | Transport | Purpose |
 | --- | --- | --- | --- |
 | Local control | CLI process ↔ server process | HTTP/JSON over Unix socket | Add, remove, list, clear, status, interface |
-| RTR | FRR ↔ MiniRPKI server | RTR v1 over TCP | Transfer VRP datasets and changes |
+| RTR | FRR ↔ MiniRPKI server | RTR v0 (default) or v1 over TCP | Transfer VRP datasets and changes |
 
 The Unix socket is a management endpoint. FRR never uses it. TCP port 8282 is an RTR endpoint. The operator CLI never uses it.
 
@@ -1272,14 +1272,14 @@ After a complete read, the handler locks `writeMu` and sets a ten-second write d
 
 Receiving an Error Report causes the server to close without replying.
 
-### `handle`: protocol version (lines 160–168)
+### `handle`: protocol version
 
-Only version 1 is accepted:
-
-- before negotiation, unsupported version produces error code 4;
-- after a valid query, a version change produces error code 8.
-
-The Error Report is attempted, then the connection closes.
+The configured server version is process-wide: v0 by default, or v1 with
+`--rtr-version 1`. A v0-configured cache answers an initial v1 query with v0,
+which is RFC 8210's downgrade path. A v1-configured cache rejects an initial
+v0 query with error code 4. After negotiation, a version change closes the
+connection; v1 uses error code 8, while v0 uses generic error code 0 because
+RFC 6810 has no code 8.
 
 ### `handle`: query type and length (lines 169–178)
 
@@ -1306,7 +1306,7 @@ Response order is:
 Cache Response(current session)
 zero or more Prefix withdrawals
 zero or more Prefix announcements
-End of Data(current session, current serial, refresh, retry, expire)
+End of Data(current session, current serial[, refresh, retry, expire])
 ```
 
 Each later write happens only if prior writes succeeded. Successful End of Data updates `seen` to the response serial. Then the lock is released. A write error ends the connection.
@@ -1344,7 +1344,7 @@ Confirmed behavior:
 - No connection-count limit exists.
 - No RTR TLS or SSH transport exists.
 - Idle connections can remain for up to two hours without a query.
-- The server supports only RTR version 1.
+- RTR v0 is the default; RTR v1 is selectable. Router Key PDUs remain unsupported.
 - Router Key PDUs are not supported.
 - Notify checks every second but is rate-limited to once per minute per connection.
 

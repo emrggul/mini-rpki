@@ -154,10 +154,12 @@ Dataset changes are saved atomically before advancing the serial. Connected rout
 Refresh defaults to five seconds in both the cache and prepared FRR lab. Serial Notify remains limited to one per minute per connection under [RFC 8210](https://www.rfc-editor.org/rfc/rfc8210.html). Update timing depends on the router; server-side commits do not guarantee immediate router-side validation.
 
 ```sh
-mini-rpki serve --listen :8282 --data /data/vrps.json --socket /run/minirpki/control.sock --refresh 5
+mini-rpki serve --listen :8282 --data /data/vrps.json --socket /run/minirpki/control.sock --refresh 5 --rtr-version 0
 ```
 
-Environment equivalents: `MINIRPKI_LISTEN`, `MINIRPKI_DATA`, `MINIRPKI_SOCKET`, and `MINIRPKI_REFRESH`. The container image sets `MINIRPKI_SOCKET=/run/minirpki/control.sock`, keeping the runtime socket out of the persistent `/data` volume. Refresh supports 1..599 seconds; retry/expire stay 10/600 seconds. CLI processes use `MINIRPKI_SOCKET` to find the running server. Modify records with the CLI rather than editing JSON during operation.
+RTR v0 (RFC 6810) is the default for older router interoperability. Select RTR v1 (RFC 8210) deliberately with `--rtr-version 1` or `MINIRPKI_RTR_VERSION=1`. The selected version applies to every RTR client for that server process; changing it requires a restart. Version 0 End of Data PDUs do not contain timing parameters, while version 1 carries the configured refresh/retry/expire values.
+
+Environment equivalents: `MINIRPKI_LISTEN`, `MINIRPKI_DATA`, `MINIRPKI_SOCKET`, `MINIRPKI_REFRESH`, and `MINIRPKI_RTR_VERSION`. The container image sets `MINIRPKI_SOCKET=/run/minirpki/control.sock`, keeping the runtime socket out of the persistent `/data` volume. Refresh supports 1..599 seconds; retry/expire stay 10/600 seconds. CLI processes use `MINIRPKI_SOCKET` to find the running server. Modify records with the CLI rather than editing JSON during operation.
 
 Logs record changes, serial advancement, queries, notifications, and End of Data. No runtime code downloads RPKI data or initiates Internet requests.
 
@@ -177,7 +179,7 @@ See [architecture](docs/architecture.md), [development notes](docs/development.m
 
 ## Limitations, security, and troubleshooting
 
-- RTR v1 IPv4/IPv6 prefix records only. No v0, Router Keys, TLS, SSH, repository downloads, or cryptographic ROA validation.
+- RTR v0 (default) and RTR v1 IPv4/IPv6 prefix records. No Router Keys, TLS, SSH, repository downloads, or cryptographic ROA validation.
 - Trust lab clients only. Input PDUs are capped at 4096 bytes; writes time out after ten seconds and idle RTR reads after two hours. No connection-count quota is implemented.
 - No cache session: check port reachability and FRR's loaded RPKI module. A TCP connection alone does not prove synchronization; check `show rpki prefix-table` and route detail.
 - Unexpected Not Found: inspect the address family, covering prefixes, and the router's current table. For Invalid, check origin and maximum length. Keep inbound soft reconfiguration enabled for FRR's live reevaluation.

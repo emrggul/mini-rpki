@@ -17,3 +17,11 @@ func TestInvalidRefreshCLI(t *testing.T) {
 		}
 	}
 }
+
+func TestInvalidRTRVersionCLI(t *testing.T) {
+	for _, value := range []string{"2", "-1", "abc"} {
+		if err := run([]string{"serve", "--rtr-version", value}); err == nil {
+			t.Fatal("accepted", value)
+		}
+	}
+}

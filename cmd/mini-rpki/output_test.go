@@ -19,7 +19,7 @@ func TestReadableOutput(t *testing.T) {
 		{"interface", control.AddressInfo{Listener: "10.82.0.1:8282", Endpoints: []control.Endpoint{{IP: "10.82.0.1", Port: "8282", Interface: "eth1"}}}, []string{"10.82.0.1", "8282", "eth1", "routing or port forwarding"}},
 		{"list", vrp.DemoRecords(), []string{"PREFIX", "MAXLEN", "ORIGIN", "192.0.2.0/24", "2001:db8:100::/48", "AS65001"}},
 		{"list", nil, []string{"Records served: 0", "No records configured."}},
-		{"status", control.Status{Session: 42, Serial: 7, Records: 2, Refresh: 5, Retry: 10, Expire: 600}, []string{"Session ID: 42", "Serial: 7", "refresh 5s", "No routers connected."}},
+		{"status", control.Status{Session: 42, Serial: 7, Records: 2, Version: 0, Refresh: 5, Retry: 10, Expire: 600}, []string{"RTR protocol version: 0", "Session ID: 42", "Serial: 7", "refresh 5s", "No routers connected."}},
 		{"add", map[string]any{"serial": 2, "record": vrp.DemoRecords()[0], "vrps": vrp.DemoRecords()}, []string{"Saved: 192.0.2.0/24", "maxlen 24", "AS65001", "Cache serial: 2"}},
 		{"remove", map[string]any{"serial": 3, "record": vrp.DemoRecords()[0], "vrps": []vrp.Record{}}, []string{"Removed: 192.0.2.0/24", "Cache serial: 3"}},
 		{"clear", map[string]any{"serial": 4, "vrps": []vrp.Record{}}, []string{"All records cleared.", "Cache serial: 4"}},

@@ -28,6 +28,9 @@ const (
 )
 
 type Server struct {
+	// ProtocolVersion is the configured RTR version. Zero is intentional: it
+	// makes RFC 6810 / RTR v0 the safe zero-value and command-line default.
+	ProtocolVersion uint8
 	Refresh         uint32
 	Store           *vrp.Store
 	mu              sync.Mutex
@@ -47,6 +50,7 @@ func (s *Server) RefreshInterval() uint32 {
 	}
 	return s.Refresh
 }
+func (s *Server) RTRVersion() uint8 { return s.ProtocolVersion }
 func (s *Server) Clients() []Client {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -57,6 +61,9 @@ func (s *Server) Clients() []Client {
 	return out
 }
 func (s *Server) Serve(ctx context.Context, l net.Listener) error {
+	if s.RTRVersion() > 1 {
+		return fmt.Errorf("RTR protocol version must be 0 or 1")
+	}
 	if s.RefreshInterval() >= ExpireInterval {
 		return fmt.Errorf("refresh interval must be 1..599 seconds (expire is 600)")
 	}
@@ -124,7 +131,7 @@ func (s *Server) handle(ctx context.Context, c net.Conn) {
 				session, serial, _ := s.Store.State()
 				if notificationDue(negotiated, serial, seen, lastNotify, time.Now()) {
 					c.SetWriteDeadline(time.Now().Add(10 * time.Second))
-					if Write(c, New(Notify, session, serial)) != nil {
+					if Write(c, NewVersion(s.RTRVersion(), Notify, session, serial)) != nil {
 						c.Close()
 						writeMu.Unlock()
 						return
@@ -145,7 +152,7 @@ func (s *Server) handle(ctx context.Context, c net.Conn) {
 				if p.Type != ErrorReport {
 					writeMu.Lock()
 					c.SetWriteDeadline(time.Now().Add(10 * time.Second))
-					_ = Write(c, Error(0, p, err.Error()))
+					_ = Write(c, ErrorVersion(s.RTRVersion(), 0, p, err.Error()))
 					writeMu.Unlock()
 				}
 			}
@@ -157,38 +164,55 @@ func (s *Server) handle(ctx context.Context, c net.Conn) {
 			writeMu.Unlock()
 			return
 		}
-		if p.Version != 1 {
-			code := uint16(4)
-			if negotiated {
-				code = 8
+		if p.Version > 1 {
+			_ = Write(c, ErrorVersion(s.RTRVersion(), 4, p, "unsupported RTR protocol version"))
+			writeMu.Unlock()
+			return
+		}
+		// A cache configured for v1 is v1-only.  RFC 8210 permits it to
+		// decline a v0 query with Unsupported Protocol Version.  Conversely,
+		// a configured v0 cache answers an initial v1 query in v0 so the router
+		// can perform the defined downgrade.
+		if !negotiated && s.RTRVersion() == 1 && p.Version != 1 {
+			_ = Write(c, ErrorVersion(1, 4, p, "RTR version 1 is configured"))
+			writeMu.Unlock()
+			return
+		}
+		if negotiated && p.Version != s.RTRVersion() {
+			code := uint16(0)
+			if s.RTRVersion() == 1 {
+				code = 8 // RFC 8210 Unexpected Protocol Version.
 			}
-			_ = Write(c, Error(code, p, "only RTR version 1 is supported"))
+			_ = Write(c, ErrorVersion(s.RTRVersion(), code, p, "unexpected RTR protocol version"))
 			writeMu.Unlock()
 			return
 		}
 		if p.Type != ResetQuery && p.Type != SerialQuery {
-			_ = Write(c, Error(5, p, "expected Reset Query or Serial Query"))
+			_ = Write(c, ErrorVersion(s.RTRVersion(), 5, p, "expected Reset Query or Serial Query"))
 			writeMu.Unlock()
 			return
 		}
 		if (p.Type == ResetQuery && len(p.Body) != 0) || (p.Type == SerialQuery && len(p.Body) != 4) {
-			_ = Write(c, Error(0, p, "invalid query length"))
+			_ = Write(c, ErrorVersion(s.RTRVersion(), 0, p, "invalid query length"))
 			writeMu.Unlock()
 			return
+		}
+		if !negotiated {
+			log.Printf("RTR version negotiation remote=%s requested=%d selected=%d", c.RemoteAddr(), p.Version, s.RTRVersion())
 		}
 		negotiated = true
 		session, serial, records := s.Store.State()
 		var withdrawals []vrp.Record
 		if p.Type == SerialQuery {
 			if p.Field != session {
-				_ = Write(c, Error(0, p, "session ID mismatch"))
+				_ = Write(c, ErrorVersion(s.RTRVersion(), 0, p, "session ID mismatch"))
 				writeMu.Unlock()
 				return
 			}
 			var ok bool
 			session, serial, records, withdrawals, ok = s.Store.Delta(p.Field, binary.BigEndian.Uint32(p.Body))
 			if !ok {
-				err = Write(c, New(CacheReset, 0))
+				err = Write(c, NewVersion(s.RTRVersion(), CacheReset, 0))
 				writeMu.Unlock()
 				if err != nil {
 					return
@@ -197,19 +221,19 @@ func (s *Server) handle(ctx context.Context, c net.Conn) {
 			}
 		}
 		log.Printf("RTR query remote=%s type=%d serial=%d announcements=%d withdrawals=%d", c.RemoteAddr(), p.Type, serial, len(records), len(withdrawals))
-		err = Write(c, New(CacheResponse, session))
+		err = Write(c, NewVersion(s.RTRVersion(), CacheResponse, session))
 		for _, r := range withdrawals {
 			if err == nil {
-				err = Write(c, Prefix(r, false))
+				err = Write(c, PrefixVersion(s.RTRVersion(), r, false))
 			}
 		}
 		for _, r := range records {
 			if err == nil {
-				err = Write(c, Prefix(r, true))
+				err = Write(c, PrefixVersion(s.RTRVersion(), r, true))
 			}
 		}
 		if err == nil {
-			err = Write(c, New(EndOfData, session, serial, s.RefreshInterval(), RetryInterval, ExpireInterval))
+			err = Write(c, EndOfDataVersion(s.RTRVersion(), session, serial, s.RefreshInterval(), RetryInterval, ExpireInterval))
 		}
 		if err == nil {
 			seen = serial

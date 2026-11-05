@@ -258,6 +258,11 @@ The separate standalone Docker quick start in README publishes port 8282. This c
 
 ## Update timing
 
+The prepared topology intentionally uses the default RTR v0 to work with
+routers that implement RFC 6810. To use RFC 8210/RTR v1 instead, add
+`MINIRPKI_RTR_VERSION: "1"` under the `mini-rpki` node's `env:` section and
+redeploy. The cache uses one selected version for every connected router.
+
 Default refresh and FRR polling are five seconds. Allow time for the next successful RTR update, then verify actual FRR output. Serial Notify is limited to once per minute per connection, as required by the protocol.
 
 For a deliberate one-second experiment, set MINIRPKI_REFRESH: "1" in the mini-rpki node's env section in lab/containerlab/minirpki.clab.yml and set rpki polling_period 1 in lab/containerlab/router.conf. Redeploy with down then up. This changes polling, not the notification rate limit, and is not a guaranteed end-to-end update deadline.

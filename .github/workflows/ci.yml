@@ -11,10 +11,12 @@ jobs:
   go:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-go@v5
+      - uses: actions/checkout@v5
+      - uses: actions/setup-go@v6
         with:
           go-version: '1.24.x'
+          # MiniRPKI has no external Go modules, so it has no go.sum to cache.
+          cache: false
       - run: test -z "$(gofmt -d $(find cmd internal -name '*.go' -type f))"
       - run: go vet ./...
       - run: go test -race ./...
@@ -23,6 +25,6 @@ jobs:
   container-images:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
       - run: docker build -t mini-rpki:ci .
       - run: docker build --build-arg BASE_IMAGE=mini-rpki:ci -t mini-rpki-clab:ci lab/containerlab/cache

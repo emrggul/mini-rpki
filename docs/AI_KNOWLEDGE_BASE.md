@@ -102,7 +102,7 @@ Run helpers from the repository root:
 
 Topology: lab/containerlab/minirpki.clab.yml. Node names are clab-minirpki-mini-rpki, clab-minirpki-router, and clab-minirpki-peer. Image pulling is disabled in the topology; build images first.
 
-Images: mini-rpki:local is the normal application image; mini-rpki-clab:local adds link setup and privilege dropping; mini-rpki-frr:local installs Debian FRR and frr-rpki-rtrlib. The inspected local FRR packages were 10.3-3+deb13u1. Do not assume an image build today will resolve the same package revision.
+Images: mini-rpki:local is the universal application image. With `MINIRPKI_ADDRESS` set, its entrypoint configures the Containerlab data link before dropping privileges; otherwise it runs as normal Docker MiniRPKI. mini-rpki-frr:local installs Debian FRR and frr-rpki-rtrlib. The inspected local FRR packages were 10.3-3+deb13u1. Do not assume an image build today will resolve the same package revision.
 
 | Node/link | Address |
 | --- | --- |
@@ -154,7 +154,7 @@ Some earlier experiments copied compatible binaries into running containers. Run
 
 ## Maintaining this handoff
 
-Stop/start diagnosis on 2026-10-20: VS Code invoked containerlab stop/start, and Start logged restored links. MiniRPKI then immediately exited with a stale `/run/minirpki/control.sock` bind error; subsequent starts timed out on eth1 and the router also exited. The cache entrypoint now removes that socket before launching its sole server, since Docker retains the writable layer across stop/start. Current-turn verification: container logs and extension logs inspected, and `sh -n lab/containerlab/cache/start.sh` passed. The updated image and stop/start behavior have not yet been verified at runtime. Earlier claims that containerlab Start never restores links are too broad; distinguish it from Docker Start.
+Stop/start diagnosis on 2026-10-20: VS Code invoked containerlab stop/start, and Start logged restored links. MiniRPKI then immediately exited with a stale `/run/minirpki/control.sock` bind error; subsequent starts timed out on eth1 and the router also exited. The current universal image entrypoint removes that socket in Containerlab mode before launching its sole server, since Docker retains the writable layer across stop/start. Earlier claims that containerlab Start never restores links are too broad; distinguish it from Docker Start.
 
 For each change, record the final behavior, why it matters, exact tests executed, failures, and remaining limitations. Update the user guide when CLI or topology changes. Keep historical evidence separate from current runtime status and never publish a user's experimental dataset as project defaults.
 

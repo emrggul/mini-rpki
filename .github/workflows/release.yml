@@ -1,4 +1,4 @@
-name: Publish container images
+name: Publish container image
 
 on:
   push:
@@ -23,14 +23,7 @@ jobs:
           registry: ${{ env.REGISTRY }}
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
-      - name: Build and push the application image
+      - name: Build and push the MiniRPKI image
         run: |
           docker build -t "$IMAGE:${GITHUB_REF_NAME}" .
           docker push "$IMAGE:${GITHUB_REF_NAME}"
-      - name: Build and push the Containerlab image
-        run: |
-          docker build \
-            --build-arg "BASE_IMAGE=$IMAGE:${GITHUB_REF_NAME}" \
-            -t "$IMAGE-clab:${GITHUB_REF_NAME}" \
-            lab/containerlab/cache
-          docker push "$IMAGE-clab:${GITHUB_REF_NAME}"

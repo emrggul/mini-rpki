@@ -27,17 +27,16 @@ git tag -a v0.1.0 -m 'MiniRPKI v0.1.0'
 git push origin v0.1.0
 ```
 
-The release workflow publishes two images:
+The release workflow publishes one universal image:
 
 ```text
 ghcr.io/OWNER/mini-rpki:v0.1.0
-ghcr.io/OWNER/mini-rpki-clab:v0.1.0
 ```
 
-The first is the standalone application image. The `-clab` image includes the
-Containerlab interface-configuration wrapper and is the image users reference
-in an existing Containerlab topology. See
-`examples/containerlab/README.md` for the exact node/link pattern.
+It runs normally in Docker. When a Containerlab topology supplies
+`MINIRPKI_ADDRESS` and `MINIRPKI_PORT`, the same image configures its `eth1`
+data link before starting MiniRPKI. See `examples/containerlab/README.md` for
+the exact node/link pattern.
 
 After the workflow completes, make the package public in GitHub Packages if
 you want users to pull it without GitHub authentication. Test a clean pull and

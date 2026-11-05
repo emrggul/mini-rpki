@@ -24,7 +24,6 @@ image:
 
 ```sh
 docker build -t mini-rpki:local .
-docker build -t mini-rpki-clab:local lab/containerlab/cache
 ```
 
 Do not run `./lab/containerlab/lab test` against a lab containing VRPs you

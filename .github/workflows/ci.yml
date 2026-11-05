@@ -22,9 +22,8 @@ jobs:
       - run: go test -race ./...
       - run: go build ./cmd/mini-rpki
 
-  container-images:
+  container-image:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v5
       - run: docker build -t mini-rpki:ci .
-      - run: docker build --build-arg BASE_IMAGE=mini-rpki:ci -t mini-rpki-clab:ci lab/containerlab/cache

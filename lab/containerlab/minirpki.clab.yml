@@ -9,7 +9,7 @@ topology:
     restart-policy: "no"
   nodes:
     mini-rpki:
-      image: mini-rpki-clab:local
+      image: mini-rpki:local
       mgmt-ipv4: 172.31.82.2
       env:
         MINIRPKI_ADDRESS: 10.82.0.1/30

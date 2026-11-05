@@ -201,7 +201,8 @@ There is no direct "CLI tells RTR server to send" call. The control API changes 
 The root [Dockerfile](../Dockerfile) has two stages:
 
 1. A builder runs `go test` and compiles the source into an executable.
-2. A smaller Alpine image receives the executable and runs it as UID/GID `10001`.
+2. A smaller Alpine image receives the executable. Its entrypoint starts
+   MiniRPKI as UID/GID `10001` after any required Containerlab link setup.
 
 Its default invocation is:
 
@@ -211,7 +212,9 @@ mini-rpki serve
 
 `EXPOSE 8282` describes the RTR port; it does **not** publish that port on the host.
 
-Containerlab adds a wrapper through [lab/containerlab/cache/Dockerfile](../lab/containerlab/cache/Dockerfile). Its [start.sh](../lab/containerlab/cache/start.sh):
+The same image has [docker/entrypoint.sh](../docker/entrypoint.sh). Normal
+Docker use starts MiniRPKI directly and unprivileged. When a Containerlab
+topology supplies `MINIRPKI_ADDRESS`, the entrypoint:
 
 1. Waits for Containerlab to attach `eth1`.
 2. Assigns `10.82.0.1/30`.
@@ -219,7 +222,8 @@ Containerlab adds a wrapper through [lab/containerlab/cache/Dockerfile](../lab/c
 4. Drops privileges.
 5. Executes MiniRPKI bound to `10.82.0.1:8282`.
 
-That wrapper is deployment code, separate from the Go application. This separation explains the recent failures: a missing interface can stop the wrapper **before the Go server starts**.
+That entrypoint is deployment code, separate from the Go application. A missing
+interface can stop it **before the Go server starts**.
 
 The links and mounted directories are defined in [lab/containerlab/minirpki.clab.yml](../lab/containerlab/minirpki.clab.yml). FRR's RTR cache address is configured in [lab/containerlab/router.conf](../lab/containerlab/router.conf).
 

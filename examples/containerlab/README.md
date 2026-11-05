@@ -18,7 +18,7 @@ topology:
   nodes:
     mini-rpki:
       kind: linux
-      image: ghcr.io/OWNER/mini-rpki-clab:VERSION
+      image: ghcr.io/OWNER/mini-rpki:VERSION
       env:
         MINIRPKI_ADDRESS: 192.0.2.1/30
         MINIRPKI_PORT: "8282"
@@ -29,9 +29,10 @@ topology:
     - endpoints: ["mini-rpki:eth1", "YOUR-ROUTER:ethN"]
 ```
 
-Containerlab creates `eth1` in the MiniRPKI container for this link. The
-wrapper always uses that interface, assigns `MINIRPKI_ADDRESS`, then starts the
-RTR server at that IP and `MINIRPKI_PORT`. The `/data` bind mount preserves VRPs when
+Containerlab creates `eth1` in the MiniRPKI container for this link. When
+`MINIRPKI_ADDRESS` is set, the universal MiniRPKI image waits for that
+interface, assigns the address, then starts the RTR server at that IP and
+`MINIRPKI_PORT`. The `/data` bind mount preserves VRPs when
 the topology is destroyed and redeployed.
 
 Use a `/30` or `/31` point-to-point IPv4 network, or use an IPv6 address plan

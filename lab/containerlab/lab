@@ -12,7 +12,6 @@ case "$command" in
   build)
     docker build -t mini-rpki:local .
     docker build -t mini-rpki-frr:local lab/frr
-    docker build -t mini-rpki-clab:local lab/containerlab/cache
     ;;
   up)
     mkdir -p lab/containerlab/data

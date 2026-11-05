@@ -4,7 +4,7 @@
 
 - [Containerlab user guide](CONTAINERLAB_GUIDE.md): deploy on WSL, open FRR, inspect validation, and change records.
 - [Existing Containerlab example](examples/containerlab/README.md): add MiniRPKI to your own topology with a dedicated configurable RTR link.
-- [Release guide](docs/RELEASING.md): publish the normal and Containerlab images to GitHub Container Registry.
+- [Release guide](docs/RELEASING.md): publish the single Docker/Containerlab image to GitHub Container Registry.
 - [Security policy](SECURITY.md): boundaries and private-reporting guidance.
 - [AI knowledge base](docs/AI_KNOWLEDGE_BASE.md): project decisions, environment, architecture, and verification history.
 - [Contributor instructions](AGENTS.md): entry point for future AI work.
@@ -33,6 +33,23 @@ docker exec mini-rpki mini-rpki status
 The published port binds all host interfaces. Restrict it to a trusted lab interface or with a firewall. Plain RTR has no authentication or encryption. Management uses a local mode-0600 Unix socket; there is no management network port.
 
 A new data volume starts with two documentation records: `192.0.2.0/24 maxlen 24 AS65001` and `2001:db8:100::/48 maxlen 48 AS65001`. Existing saved records, including an empty dataset, survive restart. Bind-mounted directories must be writable by UID/GID 10001.
+
+### Containerlab users
+
+Use this same image in your existing Containerlab topology. Set only the
+dedicated RTR-link address and TCP port; do not use the management IP as the
+RTR endpoint:
+
+```yaml
+image: ghcr.io/emrggul/mini-rpki:v0.2.0
+env:
+  MINIRPKI_ADDRESS: 192.0.2.1/30
+  MINIRPKI_PORT: "8282"
+```
+
+When `MINIRPKI_ADDRESS` is set, the image waits for Containerlab's `eth1`,
+assigns that address, and binds RTR only there. Without it, the image retains
+normal Docker behavior. See the [existing Containerlab example](examples/containerlab/README.md).
 
 ## Commands
 
@@ -165,7 +182,7 @@ See [architecture](docs/architecture.md), [development notes](docs/development.m
 - No cache session: check port reachability and FRR's loaded RPKI module. A TCP connection alone does not prove synchronization; check `show rpki prefix-table` and route detail.
 - Unexpected Not Found: inspect the address family, covering prefixes, and the router's current table. For Invalid, check origin and maximum length. Keep inbound soft reconfiguration enabled for FRR's live reevaluation.
 - Failed JSON reads prevent startup; failed persistence rejects updates without changing served state. Use one process per data directory. Power-loss durability depends on filesystem behavior.
-- The standalone image refuses an existing control socket. After an unclean stop, confirm no server is running before removing a stale socket. The containerlab image keeps its socket in an ephemeral runtime directory to avoid this during destroy/redeploy.
+- The image uses an ephemeral runtime socket. In Containerlab mode it removes a stale runtime socket before starting its sole server; JSON VRPs remain in `/data`.
 - FRR 10.3 interoperability was tested. Nokia, IOS XR, and Junos have not been tested.
 
 ## Development and license

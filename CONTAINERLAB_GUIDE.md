@@ -83,14 +83,14 @@ The cache's RTR endpoint is **10.82.0.1:8282**, on its data link. Its management
 
 ### Reuse the cache node with another address plan
 
-The Containerlab cache wrapper reads these two environment values from the `mini-rpki` node:
+The universal MiniRPKI image reads these two Containerlab environment values:
 
 ```text
 MINIRPKI_ADDRESS    interface address with prefix, for example 192.0.2.1/30
 MINIRPKI_PORT       RTR TCP port, for example 8282
 ```
 
-The wrapper always uses `eth1`, the first data-link interface in the documented Containerlab node/link pattern. The reference topology supplies `10.82.0.1/30` and port `8282`. In another lab, change only those two values and configure the router's connected interface and RTR cache target to match. The wrapper waits for `eth1`, assigns `MINIRPKI_ADDRESS`, then drops to the unprivileged MiniRPKI user before starting the server.
+The image always uses `eth1`, the first data-link interface in the documented Containerlab node/link pattern. The reference topology supplies `10.82.0.1/30` and port `8282`. In another lab, change only those two values and configure the router's connected interface and RTR cache target to match. The entrypoint waits for `eth1`, assigns `MINIRPKI_ADDRESS`, then drops to the unprivileged MiniRPKI user before starting the server.
 
 Attach a shell to the MiniRPKI node to manage records with `mini-rpki add`, `remove`, `list`, and `status`. The management path is separate from the router-to-cache data link.
 
@@ -104,7 +104,7 @@ docker logs --tail 100 clab-minirpki-router
 
 If all nodes exit after about one minute with `Missing data interface eth1` or `containerlab eth1 did not appear`, the startup scripts timed out waiting for containerlab links. Starting existing containers with Docker does not recreate these links. Use containerlab deployment rather than Docker Start/Restart.
 
-If MiniRPKI immediately exits with `control.sock: bind: address already in use` after Stop/Start, its old image retained a stale control socket. The cache startup wrapper now removes that socket before launching its sole server. Build the updated cache image with `docker build -t mini-rpki-clab:local lab/containerlab/cache`, then recreate the topology below. Building alone does not update existing containers. Containerlab Start can restore links, but an endpoint exiting during restoration can disrupt that recovery.
+If MiniRPKI immediately exits with `control.sock: bind: address already in use` after Stop/Start, rebuild the universal MiniRPKI image, which removes its stale runtime socket in Containerlab mode before launching its sole server. Building alone does not update existing containers. Containerlab Start can restore links, but an endpoint exiting during restoration can disrupt that recovery.
 
 To recreate that topology:
 

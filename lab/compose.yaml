@@ -1,0 +1,40 @@
+services:
+  mini-rpki:
+    build: ..
+    volumes:
+      - rpki-data:/data
+    networks:
+      lab:
+        ipv4_address: 172.30.82.2
+        ipv6_address: 2001:db8:82::2
+  router:
+    build: ./frr
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    volumes:
+      - ./router.conf:/etc/frr/frr.conf:ro
+    networks:
+      lab:
+        ipv4_address: 172.30.82.3
+        ipv6_address: 2001:db8:82::3
+    depends_on:
+      mini-rpki:
+        condition: service_healthy
+  peer:
+    build: ./frr
+    cap_add: [NET_ADMIN, NET_RAW, SYS_ADMIN]
+    volumes:
+      - ./peer.conf:/etc/frr/frr.conf:ro
+    networks:
+      lab:
+        ipv4_address: 172.30.82.4
+        ipv6_address: 2001:db8:82::4
+networks:
+  lab:
+    internal: true
+    enable_ipv6: true
+    ipam:
+      config:
+        - subnet: 172.30.82.0/24
+        - subnet: 2001:db8:82::/64
+volumes:
+  rpki-data:

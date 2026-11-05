@@ -1,0 +1,35 @@
+name: minirpki
+mgmt:
+  network: minirpki-mgmt
+  ipv4-subnet: 172.31.82.0/24
+topology:
+  defaults:
+    kind: linux
+    image-pull-policy: Never
+    restart-policy: "no"
+  nodes:
+    mini-rpki:
+      image: mini-rpki-clab:local
+      mgmt-ipv4: 172.31.82.2
+      env:
+        MINIRPKI_ADDRESS: 10.82.0.1/30
+        MINIRPKI_PORT: "8282"
+      binds:
+        - ./data:/data
+    router:
+      image: mini-rpki-frr:local
+      cmd: sh /clab-frr-start.sh
+      mgmt-ipv4: 172.31.82.3
+      binds:
+        - ./router.conf:/etc/frr/frr.conf:ro
+        - ./frr-start.sh:/clab-frr-start.sh:ro
+    peer:
+      image: mini-rpki-frr:local
+      cmd: sh /clab-frr-start.sh
+      mgmt-ipv4: 172.31.82.4
+      binds:
+        - ./peer.conf:/etc/frr/frr.conf:ro
+        - ./frr-start.sh:/clab-frr-start.sh:ro
+  links:
+    - endpoints: ["mini-rpki:eth1", "router:eth1"]
+    - endpoints: ["router:eth2", "peer:eth1"]

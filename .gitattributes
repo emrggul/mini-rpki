@@ -1,0 +1,5 @@
+*.sh text eol=lf
+lab/lab text eol=lf
+lab/containerlab/lab text eol=lf
+*.go text eol=lf
+Dockerfile text eol=lf

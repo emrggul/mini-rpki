@@ -1,0 +1,35 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/.."
+dc() { docker compose -f lab/compose.yaml "$@"; }
+command=${1:-help}
+if [ "$#" -gt 0 ]; then shift; fi
+case "$command" in
+  up) dc up -d --build "$@" ;;
+  down) dc down "$@" ;;
+  status) dc ps; dc exec -T mini-rpki mini-rpki status ;;
+  add|remove|list|clear|interface|vrp) dc exec -T mini-rpki mini-rpki "$command" "$@" ;;
+  router|peer)
+    if [ "$#" -eq 0 ]; then dc exec "$command" vtysh
+    else dc exec -T "$command" vtysh "$@"; fi
+    ;;
+  logs) dc logs --tail 100 -f "$@" ;;
+  test) sh lab/test.sh "$@" ;;
+  *) cat <<'HELP'
+MiniRPKI container lab (run inside WSL)
+  ./lab/lab up                         Build and start the three containers
+  ./lab/lab status                     Show containers and RTR clients
+  ./lab/lab interface                     Show RTR IP and port
+  ./lab/lab list                   Show served VRPs
+  ./lab/lab add PREFIX --asn ASN [--maxlen LENGTH]
+  ./lab/lab remove PREFIX --asn ASN [--maxlen LENGTH]
+  ./lab/lab router                     Open the router's interactive FRR CLI
+  ./lab/lab router -c 'show bgp ipv4 unicast'
+  ./lab/lab peer                       Open the BGP peer's interactive FRR CLI
+  ./lab/lab logs mini-rpki             Follow RTR/cache logs (Ctrl-C to stop)
+  ./lab/lab test                       Assert router states and live changes
+  ./lab/lab down                       Stop containers; retain saved VRPs
+  ./lab/lab down -v                    Stop and delete this lab's saved VRPs
+HELP
+    ;;
+esac

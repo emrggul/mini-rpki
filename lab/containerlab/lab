@@ -1,0 +1,53 @@
+#!/bin/sh
+set -eu
+cd "$(dirname "$0")/../.."
+topology=lab/containerlab/minirpki.clab.yml
+clab() {
+  containerlab "$@"
+}
+cache() { docker exec clab-minirpki-mini-rpki mini-rpki "$@"; }
+command=${1:-help}
+if [ "$#" -gt 0 ]; then shift; fi
+case "$command" in
+  build)
+    docker build -t mini-rpki:local .
+    docker build -t mini-rpki-frr:local lab/frr
+    docker build -t mini-rpki-clab:local lab/containerlab/cache
+    ;;
+  up)
+    mkdir -p lab/containerlab/data
+    clab deploy -t "$topology" "$@"
+    for attempt in $(seq 1 60); do
+      if cache status >/dev/null 2>&1; then exit 0; fi
+      sleep 1
+    done
+    docker logs clab-minirpki-mini-rpki >&2
+    echo 'MiniRPKI control socket did not become ready' >&2
+    exit 1
+    ;;
+  down) clab destroy -t "$topology" "$@" ;;
+  status) clab inspect -t "$topology"; cache status ;;
+  add|remove|list|clear|interface|vrp) cache "$command" "$@" ;;
+  router|peer)
+    if [ "$#" -eq 0 ]; then docker exec -it "clab-minirpki-$command" vtysh
+    else docker exec "clab-minirpki-$command" vtysh "$@"; fi
+    ;;
+  logs) docker logs --tail 100 -f "clab-minirpki-${1:-mini-rpki}" ;;
+  test) sh lab/containerlab/test.sh ;;
+  *) cat <<'HELP'
+MiniRPKI containerlab (from ~/src/MiniRPKI)
+  ./lab/containerlab/lab build           Build the three local images
+  ./lab/containerlab/lab up              Deploy nodes and data links
+  ./lab/containerlab/lab status          Show topology and cache clients
+  ./lab/containerlab/lab router          Open interactive FRR vtysh
+  ./lab/containerlab/lab peer            Open advertising peer vtysh
+  ./lab/containerlab/lab router -c 'show bgp ipv4 unicast'
+  ./lab/containerlab/lab interface        Show RTR IP and port
+  ./lab/containerlab/lab list
+  ./lab/containerlab/lab add PREFIX --asn ASN [--maxlen LENGTH]
+  ./lab/containerlab/lab logs            Follow cache logs
+  ./lab/containerlab/lab test            Verify real FRR states and live updates
+  ./lab/containerlab/lab down            Destroy nodes; preserve saved VRPs
+HELP
+    ;;
+esac

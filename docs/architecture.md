@@ -1,0 +1,15 @@
+# Architecture and invariants
+
+`cmd/mini-rpki` composes a single process. `internal/rtr` owns binary framing and TCP sessions; `internal/vrp` owns validated tuples, persistence, cache session, serial, and bounded snapshot history. `internal/scenario` retains private validation test fixtures only; it is not part of the runtime CLI or control interface. `internal/control` exposes a local HTTP-over-Unix-socket protocol consumed by the CLI. HTTP is used only for local framing, never a network management listener.
+
+The store serializes mutations under one mutex. Records are normalized and sorted before a change, and duplicates collapse. A new dataset is committed to memory and history only after atomic persistence succeeds. Readers receive copies. The history retains 129 snapshots, supporting 128 transitions. Serial comparison is by exact retained snapshot identity rather than unsafe integer ordering across wraparound. Snapshot subtraction emits net withdrawals before net announcements and avoids duplicate records when intermediate changes cancel.
+
+Each RTR response obtains one consistent session/serial/dataset snapshot. Mutations during transmission belong to a later response. Each connection has one write mutex across the entire response and notification. Partial writes are retried, reads use `io.ReadFull`, oversized input is rejected before allocation, and a failed response closes its TCP connection. A successful response ends with version-1 timers. Refresh/retry/expire default to 5/10/600 seconds. Refresh is configurable from 1 through 599 seconds via --refresh or MINIRPKI_REFRESH; retry and expire remain fixed, and expire stays larger than both other timers.
+
+Notification workers inspect the current serial once per second. Negotiation state, last served/notified serial, and last notification time are protected by the connection write mutex. Notifications are never sent before a supported query. A query can make a pending notification unnecessary by synchronizing the current serial. Cache Reset is sent only for a Serial Query that cannot be satisfied.
+
+A restart loads persisted records but discards serial history and generates a new random session. The old process must have stopped before another starts using its data directory. Random session generation is independent of persisted data; the 16-bit space cannot absolutely prevent collisions.
+
+SIGTERM/interrupt closes listeners and all tracked RTR connections; handlers finish before RTR Serve returns. The local HTTP server receives a bounded shutdown period. Clean exit unlinks the Unix socket. Unexpected process termination can leave a socket file; cleanup is intentionally explicit.
+
+No runtime code makes outbound Internet requests, launches subprocesses, or resolves repositories. The containerlab RTR and BGP sessions use dedicated data links. Its management bridge is not an isolation guarantee. The separate Compose lab uses a Docker internal network. Docker image and package acquisition happen at build time.

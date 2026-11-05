@@ -1,0 +1,33 @@
+{
+  "freeTextAnnotations": [],
+  "freeShapeAnnotations": [],
+  "trafficRateAnnotations": [],
+  "groupStyleAnnotations": [],
+  "networkNodeAnnotations": [],
+  "nodeAnnotations": [
+    {
+      "id": "mini-rpki",
+      "position": {
+        "x": 300,
+        "y": 360
+      }
+    },
+    {
+      "id": "router",
+      "position": {
+        "x": 460,
+        "y": 340
+      }
+    },
+    {
+      "id": "peer",
+      "position": {
+        "x": 600,
+        "y": 360
+      }
+    }
+  ],
+  "edgeAnnotations": [],
+  "aliasEndpointAnnotations": [],
+  "viewerSettings": {}
+}

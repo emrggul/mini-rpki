@@ -1,0 +1,36 @@
+name: Publish container images
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE: ghcr.io/${{ github.repository_owner }}/mini-rpki
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build and push the application image
+        run: |
+          docker build -t "$IMAGE:${GITHUB_REF_NAME}" .
+          docker push "$IMAGE:${GITHUB_REF_NAME}"
+      - name: Build and push the Containerlab image
+        run: |
+          docker build \
+            --build-arg "BASE_IMAGE=$IMAGE:${GITHUB_REF_NAME}" \
+            -t "$IMAGE-clab:${GITHUB_REF_NAME}" \
+            lab/containerlab/cache
+          docker push "$IMAGE-clab:${GITHUB_REF_NAME}"

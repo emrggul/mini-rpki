@@ -14,7 +14,7 @@ func runTLS(args []string) error {
 		return fmt.Errorf("usage: mini-rpki tls init --server-dns NAME --router-ip ADDRESS [--dir /data/tls]")
 	}
 	flags := flag.NewFlagSet("tls init", flag.ContinueOnError)
-	directory := flags.String("dir", "/data/tls", "directory for TLS certificates and private keys")
+	directory := flags.String("dir", env("MINIRPKI_TLS_DIR", "/data/tls"), "directory for TLS certificates and private keys")
 	serverDNS := flags.String("server-dns", "", "DNS name configured by the router for the MiniRPKI server")
 	routerIP := flags.String("router-ip", "", "router source IP address; placed in its client certificate IP SAN")
 	force := flags.Bool("force", false, "replace existing TLS files after backing them up")

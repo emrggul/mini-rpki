@@ -1,9 +1,9 @@
 package rtr
 
 import (
-	"crypto/ecdsa"
-	"crypto/elliptic"
+	"crypto"
 	"crypto/rand"
+	"crypto/rsa"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -15,6 +15,11 @@ import (
 	"path/filepath"
 	"time"
 )
+
+// TLSRSABits deliberately favors broad router interoperability.  SR OS
+// requires key encipherment for its TLS certificate profile, which is an RSA
+// capability; 3072 bits is a modern long-lived lab key size.
+const TLSRSABits = 3072
 
 // CredentialOptions describes a deliberately small, private lab PKI: one CA,
 // one cache server identity, and one router identity.
@@ -59,7 +64,7 @@ func CreateCredentials(options CredentialOptions) (CredentialFiles, error) {
 			return CredentialFiles{}, err
 		}
 	}
-	caKey, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	caKey, err := rsa.GenerateKey(rand.Reader, TLSRSABits)
 	if err != nil {
 		return CredentialFiles{}, err
 	}
@@ -95,8 +100,8 @@ func certificateSerial() *big.Int {
 	return serial
 }
 
-func signedCertificate(ca *x509.Certificate, caKey *ecdsa.PrivateKey, commonName string, dnsNames []string, ips []netip.Addr, usage x509.ExtKeyUsage) ([]byte, *ecdsa.PrivateKey, error) {
-	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+func signedCertificate(ca *x509.Certificate, caKey crypto.Signer, commonName string, dnsNames []string, ips []netip.Addr, usage x509.ExtKeyUsage) ([]byte, crypto.Signer, error) {
+	key, err := rsa.GenerateKey(rand.Reader, TLSRSABits)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -105,12 +110,12 @@ func signedCertificate(ca *x509.Certificate, caKey *ecdsa.PrivateKey, commonName
 		addressSANs = append(addressSANs, ip.AsSlice())
 	}
 	now := time.Now()
-	template := &x509.Certificate{SerialNumber: certificateSerial(), Subject: pkix.Name{CommonName: commonName}, DNSNames: dnsNames, IPAddresses: addressSANs, NotBefore: now.Add(-time.Minute), NotAfter: now.AddDate(1, 0, 0), KeyUsage: x509.KeyUsageDigitalSignature, ExtKeyUsage: []x509.ExtKeyUsage{usage}}
+	template := &x509.Certificate{SerialNumber: certificateSerial(), Subject: pkix.Name{CommonName: commonName}, DNSNames: dnsNames, IPAddresses: addressSANs, NotBefore: now.Add(-time.Minute), NotAfter: now.AddDate(1, 0, 0), KeyUsage: x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment, ExtKeyUsage: []x509.ExtKeyUsage{usage}}
 	der, err := x509.CreateCertificate(rand.Reader, template, ca, &key.PublicKey, caKey)
 	return der, key, err
 }
 
-func writeCredentialFiles(files CredentialFiles, caDER, serverDER []byte, serverKey *ecdsa.PrivateKey, routerDER []byte, routerKey *ecdsa.PrivateKey, force bool) error {
+func writeCredentialFiles(files CredentialFiles, caDER, serverDER []byte, serverKey crypto.Signer, routerDER []byte, routerKey crypto.Signer, force bool) error {
 	serverKeyDER, err := x509.MarshalPKCS8PrivateKey(serverKey)
 	if err != nil {
 		return err

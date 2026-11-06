@@ -68,26 +68,27 @@ RTR v0 (RFC 6810) is the default. To use RTR v1 (RFC 8210), uncomment
 
 MiniRPKI can also run an RFC 8210-style mutual-TLS listener. It is not part
 of the default quick-start path and has not yet been verified against a router
-in this release branch. First create a private lab CA and credentials from an
-attached MiniRPKI shell:
-
-```sh
-mini-rpki tls init --server-dns mini-rpki.lab --router-ip 172.31.1.1
-```
-
-This writes credentials under the persistent `minirpki-data/tls` directory.
-Keep the private-key files secret. Configure the router to trust `ca.pem`, to
-use `router.pem` and `router-key.pem` as its client identity, and to verify
-the cache using DNS name `minirpki.lab`. Then add these values to the node's
-`env:` block and redeploy:
+in this release branch. Add these values to the MiniRPKI node's `env:` block
+before its first deployment:
 
 ```yaml
 MINIRPKI_RTR_VERSION: "1"
 MINIRPKI_TLS_LISTEN: "172.31.1.2:324"
-MINIRPKI_TLS_CERT: "/data/tls/server.pem"
-MINIRPKI_TLS_KEY: "/data/tls/server-key.pem"
-MINIRPKI_TLS_CLIENT_CA: "/data/tls/ca.pem"
+MINIRPKI_TLS_BOOTSTRAP: "true"
+MINIRPKI_TLS_SERVER_DNS: "minirpki.lab"
+MINIRPKI_TLS_ROUTER_IP: "172.31.1.1"
 ```
+
+On the first TLS-enabled start, MiniRPKI creates a private lab CA, its server
+certificate/key, and the router certificate/key in `minirpki-data/tls`. It
+does this as its own unprivileged service user, starts the TLS listener in the
+same deployment, and does not overwrite complete credentials on later starts.
+The generated certificates use RSA with Digital Signature and Key Encipherment
+usage for SR OS compatibility.
+
+Keep the private-key files secret. Configure the router to trust `ca.pem`, to
+use `router.pem` and `router-key.pem` as its client identity, and to verify
+the cache using DNS name `minirpki.lab`.
 
 The TLS listener requires a client certificate signed by that CA and rejects a
 router certificate unless its IP SAN matches the router's actual source IP.

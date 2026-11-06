@@ -58,7 +58,7 @@ Maximum length defaults to the prefix length. Remove requires the exact record.
 Output: readable tables by default; append --json for scripts.
 TLS: optional RFC 8210 mutual TLS listener; it requires RTR v1.
 Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH, MINIRPKI_RTR_VERSION,
-MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINIRPKI_TLS_CLIENT_CA`)
+MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_DIR, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINIRPKI_TLS_CLIENT_CA`)
 		return nil
 	}
 	if args[0] == "serve" {
@@ -69,6 +69,7 @@ MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINIRPKI_TLS_CLIENT_CA
 		refreshFlag := f.String("refresh", env("MINIRPKI_REFRESH", "5"), "RTR refresh interval in seconds (1..599)")
 		versionFlag := f.String("rtr-version", env("MINIRPKI_RTR_VERSION", "0"), "RTR protocol version: 0 (RFC 6810) or 1 (RFC 8210)")
 		tlsAddr := f.String("tls-listen", env("MINIRPKI_TLS_LISTEN", ""), "optional mutual-TLS RTR TCP address (RTR v1 only)")
+		tlsDir := f.String("tls-dir", env("MINIRPKI_TLS_DIR", "/data/tls"), "directory containing generated TLS credentials")
 		tlsCert := f.String("tls-cert", env("MINIRPKI_TLS_CERT", ""), "TLS server certificate PEM file")
 		tlsKey := f.String("tls-key", env("MINIRPKI_TLS_KEY", ""), "TLS server private-key PEM file")
 		tlsClientCA := f.String("tls-client-ca", env("MINIRPKI_TLS_CLIENT_CA", ""), "CA PEM used to verify TLS router certificates")
@@ -95,10 +96,20 @@ MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINIRPKI_TLS_CLIENT_CA
 			if version != 1 {
 				return fmt.Errorf("TLS RTR requires --rtr-version 1")
 			}
-			for _, value := range tlsValues {
-				if value == "" {
-					return fmt.Errorf("TLS RTR requires --tls-listen, --tls-cert, --tls-key, and --tls-client-ca")
-				}
+			if *tlsAddr == "" {
+				return fmt.Errorf("TLS RTR requires --tls-listen")
+			}
+		}
+		tlsCertValue, tlsKeyValue, tlsClientCAValue := *tlsCert, *tlsKey, *tlsClientCA
+		if tlsConfigured {
+			if tlsCertValue == "" {
+				tlsCertValue = filepath.Join(*tlsDir, "server.pem")
+			}
+			if tlsKeyValue == "" {
+				tlsKeyValue = filepath.Join(*tlsDir, "server-key.pem")
+			}
+			if tlsClientCAValue == "" {
+				tlsClientCAValue = filepath.Join(*tlsDir, "ca.pem")
 			}
 		}
 		s, err := vrp.Open(*data, vrp.DemoRecords())
@@ -125,7 +136,7 @@ MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINIRPKI_TLS_CLIENT_CA
 		var tlsServer *rtr.Server
 		var tlsListener net.Listener
 		if tlsConfigured {
-			tlsListener, err = rtr.ListenTLS(*tlsAddr, rtr.TLSOptions{CertFile: *tlsCert, KeyFile: *tlsKey, ClientCAFile: *tlsClientCA})
+			tlsListener, err = rtr.ListenTLS(*tlsAddr, rtr.TLSOptions{CertFile: tlsCertValue, KeyFile: tlsKeyValue, ClientCAFile: tlsClientCAValue})
 			if err != nil {
 				return err
 			}

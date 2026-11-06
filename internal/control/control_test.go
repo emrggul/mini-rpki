@@ -12,7 +12,7 @@ import (
 
 func TestControl(t *testing.T) {
 	s, _ := vrp.Open("", nil)
-	api := API{s, &rtr.Server{Store: s}}
+	api := API{Store: s, RTR: &rtr.Server{Store: s}}
 	r := vrp.Record{Prefix: netip.MustParsePrefix("192.0.2.0/24"), ASN: 65001, MaxLen: 24}
 	for _, action := range []string{"add", "list", "status", "remove", "clear"} {
 		b, _ := json.Marshal(Request{Action: action, Record: r})

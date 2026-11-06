@@ -36,7 +36,7 @@ func TestAddressUsesRunningListener(t *testing.T) {
 	for server.ListenerAddress() == "" && time.Now().Before(deadline) {
 		time.Sleep(time.Millisecond)
 	}
-	api := API{store, server}
+	api := API{Store: store, RTR: server}
 	response := httptest.NewRecorder()
 	api.ServeHTTP(response, httptest.NewRequest("POST", "/control", bytes.NewBufferString(`{"action":"address"}`)))
 	if response.Code != 200 {

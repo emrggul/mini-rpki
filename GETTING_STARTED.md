@@ -64,6 +64,34 @@ management address is separate and is not the router's RTR endpoint.
 RTR v0 (RFC 6810) is the default. To use RTR v1 (RFC 8210), uncomment
 `MINIRPKI_RTR_VERSION: "1"` in the `env:` block above and redeploy.
 
+### Experimental mutual TLS (RTR v1 only)
+
+MiniRPKI can also run an RFC 8210-style mutual-TLS listener. It is not part
+of the default quick-start path and has not yet been verified against a router
+in this release branch. First create a private lab CA and credentials from an
+attached MiniRPKI shell:
+
+```sh
+mini-rpki tls init --server-dns mini-rpki.lab --router-ip 172.31.1.1
+```
+
+This writes credentials under the persistent `minirpki-data/tls` directory.
+Keep the private-key files secret. Configure the router to trust `ca.pem`, to
+use `router.pem` and `router-key.pem` as its client identity, and to verify
+the cache using DNS name `minirpki.lab`. Then add these values to the node's
+`env:` block and redeploy:
+
+```yaml
+MINIRPKI_RTR_VERSION: "1"
+MINIRPKI_TLS_LISTEN: "172.31.1.2:324"
+MINIRPKI_TLS_CERT: "/data/tls/server.pem"
+MINIRPKI_TLS_KEY: "/data/tls/server-key.pem"
+MINIRPKI_TLS_CLIENT_CA: "/data/tls/ca.pem"
+```
+
+The TLS listener requires a client certificate signed by that CA and rejects a
+router certificate unless its IP SAN matches the router's actual source IP.
+
 ## 4. Configure the router
 
 Configure the other address on the point-to-point link and point RTR at

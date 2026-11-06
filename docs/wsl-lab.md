@@ -1,13 +1,11 @@
-# WSL lab
+# Containerlab lab
 
-The active deployment uses [containerlab](containerlab.md). Open Ubuntu with
-`wsl -d Ubuntu-22.04`, then work in `~/src/MiniRPKI`.
+The active deployment uses [Containerlab](containerlab.md). Work from the
+repository root in a Linux terminal.
 
 Enter MiniRPKI:
 
-```sh
-docker exec -it clab-minirpki-mini-rpki sh
-```
+Use the Containerlab UI's **Attach Shell** action for the `mini-rpki` node.
 
 Create one record with one line:
 
@@ -16,11 +14,7 @@ mini-rpki add 192.0.2.0/24 --asn 65001
 mini-rpki list
 ```
 
-Enter the FRR router from a separate WSL terminal:
-
-```sh
-docker exec -it clab-minirpki-router vtysh
-```
+Enter the FRR router with `./lab/containerlab/lab router`.
 
 Then run `show rpki prefix-table` and `show bgp ipv4 unicast`.
 The [containerlab guide](containerlab.md) covers commands, addresses, timing,

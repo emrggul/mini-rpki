@@ -23,23 +23,16 @@ The peer originates real BGP routes. MiniRPKI supplies VRPs over RTR. The receiv
 
 A VRP is an IP prefix, a maximum permitted route length, and an origin ASN. Adding a VRP does not advertise a BGP route.
 
-## 1. Open WSL and check prerequisites
+## 1. Open a Linux terminal and check prerequisites
 
-This project's existing environment is Ubuntu-22.04 under WSL. From Windows PowerShell:
-
-~~~powershell
-wsl -d Ubuntu-22.04
-~~~
-
-Inside WSL:
+Change to the repository root, then verify Docker and Containerlab:
 
 ~~~sh
-cd /home/emre/src/MiniRPKI
 docker version
 containerlab version
 ~~~
 
-For a fresh machine, place this source tree in your Linux filesystem and change to its root. Install a working Docker Engine and containerlab using the [official containerlab installation instructions](https://containerlab.dev/install/). Containerlab needs Linux networking privileges; its supported setup may use sudo or its configured privilege mechanism. Docker must show a working Server section.
+Install a working Docker Engine and Containerlab using the [official containerlab installation instructions](https://containerlab.dev/install/). Containerlab needs Linux networking privileges; its supported setup may use sudo or its configured privilege mechanism. Docker must show a working Server section.
 
 Keep all commands below in the same WSL Docker environment. Docker Desktop and native WSL Docker can use different engines, images, and containers.
 
@@ -254,7 +247,7 @@ Run ./lab/containerlab/lab interface to see the cache listener. In this lab, the
 
 This address belongs to a containerlab point-to-point link. A physical router or another lab cannot necessarily reach it. You must provide routing or an appropriate connection into that network and configure the RTR listener consistently. WSL NAT, host firewalls, and Docker networking also affect reachability. The interface command reports addresses; it cannot prove external reachability.
 
-The separate standalone Docker quick start in README publishes port 8282. This containerlab topology does not publish it. Restrict any external exposure to a trusted laboratory network.
+This Containerlab topology does not publish an RTR port on the host. Keep RTR on trusted laboratory networks.
 
 ## Update timing
 
@@ -273,11 +266,9 @@ The cache saves VRPs to /data/vrps.json, backed by lab/containerlab/data/vrps.js
 
 Normal record changes are saved automatically. A saved empty dataset remains empty after restart; defaults are only for first startup. Do not edit the file while the server runs.
 
-Before clearing records or running tests, save a readable snapshot:
-
-~~~sh
-docker exec clab-minirpki-mini-rpki mini-rpki list --json > vrps-backup.json
-~~~
+Before clearing records or running tests, attach a MiniRPKI shell and run
+`mini-rpki list --json`. Save the displayed records somewhere safe so you can
+add them again afterward.
 
 There is no import command in this version. Restore records with add commands. Offline file restoration requires checking the persistence format and stopping the cache first. The on-disk file is owned by the container's non-root user and may not be directly readable by your WSL user.
 
@@ -324,7 +315,7 @@ Follow cache logs with ./lab/containerlab/lab logs. Press Ctrl-C to stop followi
 - lab/containerlab/router.conf: receiving router's interfaces, BGP, and RPKI settings.
 - lab/containerlab/peer.conf: originating router's BGP networks and interfaces.
 - lab/frr/Dockerfile and daemons: FRR package/module setup.
-- [README](README.md): product overview and standalone Docker use.
+- [Containerlab Quick Start](GETTING_STARTED.md): shortest installation and existing-topology workflow.
 - [Architecture](docs/architecture.md): implementation details.
 - [AI knowledge base](docs/AI_KNOWLEDGE_BASE.md): contributor handoff and current design decisions.
 - [Containerlab Linux nodes](https://containerlab.dev/manual/kinds/linux/) and [FRR BGP documentation](https://docs.frrouting.org/en/latest/bgp.html): upstream references.

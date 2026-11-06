@@ -34,7 +34,7 @@ case "$command" in
   logs) docker logs --tail 100 -f "clab-minirpki-${1:-mini-rpki}" ;;
   test) sh lab/containerlab/test.sh ;;
   *) cat <<'HELP'
-MiniRPKI containerlab (from ~/src/MiniRPKI)
+MiniRPKI Containerlab (run from the repository root)
   ./lab/containerlab/lab build           Build the three local images
   ./lab/containerlab/lab up              Deploy nodes and data links
   ./lab/containerlab/lab status          Show topology and cache clients

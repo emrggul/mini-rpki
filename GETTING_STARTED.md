@@ -30,6 +30,13 @@ application build step.
 Add this node and link to your existing Containerlab YAML. Replace the
 addresses, port, router name, and router interface with your own values.
 
+From the directory containing your topology YAML, create the persistent data
+directory before deployment:
+
+```sh
+mkdir -p minirpki-data
+```
+
 ```yaml
 topology:
   nodes:
@@ -95,7 +102,13 @@ RTR v0 worked with Nokia in the lab, and RTR v1 worked with the FRR lab.
 containerlab deploy -t your-topology.clab.yml
 ```
 
-In the Containerlab UI, select `mini-rpki` and choose **Attach Shell**.
+In the Containerlab UI, select `mini-rpki` and choose **Attach Shell**. From a
+terminal, you can open the same shell with Docker. For a topology named
+`rpki-lab` and a node named `mini-rpki`:
+
+```sh
+docker exec -it clab-rpki-lab-mini-rpki sh
+```
 
 Inside the shell, manage MiniRPKI directly:
 

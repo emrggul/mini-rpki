@@ -6,8 +6,8 @@ documentation before then.
 
 ## Before creating a release
 
-1. Review `README.md`, `CONTAINERLAB_GUIDE.md`, `SECURITY.md`, and this file.
-2. Run the Go checks in `CONTRIBUTING.md` and build both Docker images.
+1. Review `README.md`, `GETTING_STARTED.md`, `SECURITY.md`, and this file.
+2. Run the Go checks below and build the application image.
 3. Use a disposable Containerlab lab to verify FRR's explicit `rpki
    validation-state` output for at least Valid, Invalid, and Not Found.
 4. Confirm `lab/containerlab/data/` is not being committed and contains no

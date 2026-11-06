@@ -16,10 +16,10 @@ containerlab version
 
 ## 2. Download the image
 
-The current release is `v0.3.0`:
+The current release is `v0.6`:
 
 ```sh
-docker pull ghcr.io/emrggul/mini-rpki:v0.3.0
+docker pull ghcr.io/emrggul/mini-rpki:v0.6
 ```
 
 This downloads a ready-to-run image. You do not need Go, source code, or an
@@ -42,7 +42,7 @@ topology:
   nodes:
     mini-rpki:
       kind: linux
-      image: ghcr.io/emrggul/mini-rpki:v0.3.0
+      image: ghcr.io/emrggul/mini-rpki:v0.6
       env:
         # Interface between router and MiniRPKI.
         MINIRPKI_ADDRESS: 172.31.1.2/30

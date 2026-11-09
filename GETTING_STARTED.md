@@ -87,9 +87,16 @@ same deployment, and does not overwrite complete credentials on later starts.
 The generated certificates use RSA with Digital Signature and Key Encipherment
 usage for SR OS compatibility.
 
-Keep the private-key files secret. Configure the router to trust `ca.pem`, to
-use `router.pem` and `router-key.pem` as its client identity, and to verify
-the cache using DNS name `minirpki.lab`.
+MiniRPKI is a lab-only tool. The `/data` bind mount and all generated files,
+including both private keys, are intentionally host-readable. You can retrieve
+the Nokia files directly from `minirpki-data/tls`: `ca.pem`, `router.pem`, and
+`router-key.pem`. Configure the router to trust `ca.pem`, use `router.pem` and
+`router-key.pem` as its client identity, and verify the cache using DNS name
+`minirpki.lab`.
+
+When `MINIRPKI_TLS_BOOTSTRAP` remains `true`, later starts also update an
+older complete credential directory to these lab-readable permissions without
+generating new certificates.
 
 The TLS listener requires a client certificate signed by that CA and rejects a
 router certificate unless its IP SAN matches the router's actual source IP.

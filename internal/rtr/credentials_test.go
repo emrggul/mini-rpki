@@ -17,9 +17,20 @@ func TestCreateCredentials(t *testing.T) {
 		t.Fatal(err)
 	}
 	for _, path := range []string{files.CA, files.ServerCert, files.ServerKey, files.RouterCert, files.RouterKey} {
-		if _, err := os.Stat(path); err != nil {
+		info, err := os.Stat(path)
+		if err != nil {
 			t.Fatalf("missing %s: %v", path, err)
 		}
+		if info.Mode().Perm() != 0644 {
+			t.Fatalf("%s permissions=%#o, want 0644", path, info.Mode().Perm())
+		}
+	}
+	info, err := os.Stat(directory)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0755 {
+		t.Fatalf("credential directory permissions=%#o, want 0755", info.Mode().Perm())
 	}
 	serverPEM, err := os.ReadFile(files.ServerCert)
 	if err != nil {

@@ -30,8 +30,8 @@ type CredentialOptions struct {
 	Force     bool
 }
 
-// CredentialFiles are the generated PEM files.  Only the CA certificate is
-// shared with both participants; private keys remain on their own devices.
+// CredentialFiles are the generated PEM files. MiniRPKI is a lab-only tool,
+// so all files are intentionally host-readable through the /data bind mount.
 type CredentialFiles struct {
 	CA         string
 	ServerCert string
@@ -51,10 +51,10 @@ func CreateCredentials(options CredentialOptions) (CredentialFiles, error) {
 		CA: filepath.Join(options.Directory, "ca.pem"), ServerCert: filepath.Join(options.Directory, "server.pem"), ServerKey: filepath.Join(options.Directory, "server-key.pem"),
 		RouterCert: filepath.Join(options.Directory, "router.pem"), RouterKey: filepath.Join(options.Directory, "router-key.pem"),
 	}
-	if err := os.MkdirAll(options.Directory, 0700); err != nil {
+	if err := os.MkdirAll(options.Directory, 0755); err != nil {
 		return CredentialFiles{}, err
 	}
-	if err := os.Chmod(options.Directory, 0700); err != nil {
+	if err := os.Chmod(options.Directory, 0755); err != nil {
 		return CredentialFiles{}, err
 	}
 	for _, path := range []string{files.CA, files.ServerCert, files.ServerKey, files.RouterCert, files.RouterKey} {
@@ -129,7 +129,7 @@ func writeCredentialFiles(files CredentialFiles, caDER, serverDER []byte, server
 		der        []byte
 		mode       os.FileMode
 	}{
-		{files.CA, "CERTIFICATE", caDER, 0644}, {files.ServerCert, "CERTIFICATE", serverDER, 0644}, {files.ServerKey, "PRIVATE KEY", serverKeyDER, 0600}, {files.RouterCert, "CERTIFICATE", routerDER, 0644}, {files.RouterKey, "PRIVATE KEY", routerKeyDER, 0600},
+		{files.CA, "CERTIFICATE", caDER, 0644}, {files.ServerCert, "CERTIFICATE", serverDER, 0644}, {files.ServerKey, "PRIVATE KEY", serverKeyDER, 0644}, {files.RouterCert, "CERTIFICATE", routerDER, 0644}, {files.RouterKey, "PRIVATE KEY", routerKeyDER, 0644},
 	} {
 		flags := os.O_WRONLY | os.O_CREATE | os.O_TRUNC
 		if !force {
@@ -137,6 +137,10 @@ func writeCredentialFiles(files CredentialFiles, caDER, serverDER []byte, server
 		}
 		file, err := os.OpenFile(item.path, flags, item.mode)
 		if err != nil {
+			return err
+		}
+		if err := file.Chmod(item.mode); err != nil {
+			file.Close()
 			return err
 		}
 		_, writeErr := file.Write(pem.EncodeToMemory(&pem.Block{Type: item.kind, Bytes: item.der}))

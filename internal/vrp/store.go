@@ -150,6 +150,10 @@ func (s *Store) replace(rs []Record) error {
 		if e != nil {
 			return e
 		}
+		if e = f.Chmod(0644); e != nil {
+			f.Close()
+			return e
+		}
 		name := f.Name()
 		defer os.Remove(name)
 		if _, e = f.Write(b); e == nil {

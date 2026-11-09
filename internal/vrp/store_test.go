@@ -2,6 +2,7 @@ package vrp
 
 import (
 	"net/netip"
+	"os"
 	"path/filepath"
 	"sync"
 	"testing"
@@ -18,6 +19,13 @@ func TestStore(t *testing.T) {
 	r := rec("192.0.2.0/24", 24, 65001)
 	if e = s.Edit(r, true); e != nil {
 		t.Fatal(e)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0644 {
+		t.Fatalf("persistence permissions=%#o, want 0644", info.Mode().Perm())
 	}
 	if e = s.Edit(r, true); e != nil {
 		t.Fatal(e)

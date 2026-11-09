@@ -46,6 +46,7 @@ done
 ip address replace "$MINIRPKI_ADDRESS" dev "$iface"
 ip link set "$iface" up
 chown 10001:10001 /data
+chmod 0755 /data
 mkdir -p /run/minirpki
 chown 10001:10001 /run/minirpki
 chmod 0700 /run/minirpki
@@ -82,6 +83,10 @@ if [ "$bootstrap" = "true" ]; then
     echo "TLS credential directory $tls_dir is incomplete; refusing to replace keys automatically" >&2
     exit 1
   else
+    # This is intentionally a lab-only data volume. Keep existing credentials
+    # host-readable when an older image created them with restrictive modes.
+    chmod 0755 "$tls_dir"
+    chmod 0644 "$tls_dir"/ca.pem "$tls_dir"/server.pem "$tls_dir"/server-key.pem "$tls_dir"/router.pem "$tls_dir"/router-key.pem
     for credential in ca.pem server.pem server-key.pem router.pem router-key.pem; do
       if ! su-exec 10001:10001 test -r "$tls_dir/$credential"; then
         echo "TLS credential $tls_dir/$credential is not readable by the MiniRPKI service user" >&2

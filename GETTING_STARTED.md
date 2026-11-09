@@ -16,10 +16,10 @@ containerlab version
 
 ## 2. Download the image
 
-The current release is `v0.6`:
+The current release is `v0.9`:
 
 ```sh
-docker pull ghcr.io/emrggul/mini-rpki:v0.6
+docker pull ghcr.io/emrggul/mini-rpki:v0.9
 ```
 
 This downloads a ready-to-run image. You do not need Go, source code, or an
@@ -42,7 +42,7 @@ topology:
   nodes:
     mini-rpki:
       kind: linux
-      image: ghcr.io/emrggul/mini-rpki:v0.6
+      image: ghcr.io/emrggul/mini-rpki:v0.9
       env:
         # Interface between router and MiniRPKI.
         MINIRPKI_ADDRESS: 172.31.1.2/30
@@ -63,43 +63,6 @@ management address is separate and is not the router's RTR endpoint.
 
 RTR v0 (RFC 6810) is the default. To use RTR v1 (RFC 8210), uncomment
 `MINIRPKI_RTR_VERSION: "1"` in the `env:` block above and redeploy.
-
-### Experimental mutual TLS (RTR v0 or v1)
-
-MiniRPKI can also run an RFC 8210-style mutual-TLS listener. It is not part
-of the default quick-start path and has not yet been verified against a router
-in this release branch. Add these values to the MiniRPKI node's `env:` block
-before its first deployment:
-
-```yaml
-# Nokia SR OS uses RTR v0. Use "1" for an RTR v1 client.
-MINIRPKI_RTR_VERSION: "0"
-MINIRPKI_TLS_LISTEN: "172.31.1.2:324"
-MINIRPKI_TLS_BOOTSTRAP: "true"
-MINIRPKI_TLS_SERVER_DNS: "minirpki.lab"
-MINIRPKI_TLS_ROUTER_IP: "172.31.1.1"
-```
-
-On the first TLS-enabled start, MiniRPKI creates a private lab CA, its server
-certificate/key, and the router certificate/key in `minirpki-data/tls`. It
-does this as its own unprivileged service user, starts the TLS listener in the
-same deployment, and does not overwrite complete credentials on later starts.
-The generated certificates use RSA with Digital Signature and Key Encipherment
-usage for SR OS compatibility.
-
-MiniRPKI is a lab-only tool. The `/data` bind mount and all generated files,
-including both private keys, are intentionally host-readable. You can retrieve
-the Nokia files directly from `minirpki-data/tls`: `ca.pem`, `router.pem`, and
-`router-key.pem`. Configure the router to trust `ca.pem`, use `router.pem` and
-`router-key.pem` as its client identity, and verify the cache using DNS name
-`minirpki.lab`.
-
-When `MINIRPKI_TLS_BOOTSTRAP` remains `true`, later starts also update an
-older complete credential directory to these lab-readable permissions without
-generating new certificates.
-
-The TLS listener requires a client certificate signed by that CA and rejects a
-router certificate unless its IP SAN matches the router's actual source IP.
 
 ## 4. Configure the router
 
@@ -182,6 +145,29 @@ Run `mini-rpki clear` inside the shell to remove every VRP before creating
 your own dataset. This change is persistent when you use the `/data` bind
 mount from the topology example.
 
+### Provide a startup dataset as JSON
+
+The first startup also writes the current records to
+`minirpki-data/vrps.json`. To supply your own dataset, stop MiniRPKI (for
+example, destroy the lab), edit that file, then deploy again. Do not edit it
+while MiniRPKI is running: the cache serves an in-memory copy, and the next
+CLI change atomically replaces the file.
+
+```json
+[
+  {
+    "prefix": "192.0.2.0/24",
+    "maxLength": 24,
+    "asn": 65001
+  },
+  {
+    "prefix": "2001:db8:200::/48",
+    "maxLength": 48,
+    "asn": 65002
+  }
+]
+```
+
 ## 6. Verify the router
 
 On FRR, verify the session, received records, and actual BGP result:
@@ -202,3 +188,100 @@ On Nokia SR OS, check the session and received database with:
 show router origin-validation rpki-session
 show router origin-validation database
 ```
+
+## Mutual TLS with Nokia SR OS
+
+Complete the plaintext quick start first. This section changes the
+MiniRPKI-to-router RTR connection to mutual TLS; it is separate from the
+ordinary router configuration above.
+
+Set these values in the MiniRPKI node's `env:` block, then deploy the lab:
+
+```yaml
+# Nokia SR OS uses RTR v0. Use "1" for an RTR v1 client.
+MINIRPKI_RTR_VERSION: "0"
+MINIRPKI_TLS_BOOTSTRAP: "true"
+MINIRPKI_TLS_LISTEN: "172.31.1.2:324"
+MINIRPKI_TLS_SERVER_DNS: "minirpki.lab"
+MINIRPKI_TLS_ROUTER_IP: "172.31.1.1"
+MINIRPKI_TLS_DIR: "/data/tls-rsa"
+```
+
+`MINIRPKI_TLS_BOOTSTRAP: "true"` selects TLS mode. In this mode MiniRPKI
+opens only the TLS RTR listener on port `324`; plaintext port `8282` is not
+available. On its first start, MiniRPKI creates a lab CA, cache certificate,
+and router certificate/key in `minirpki-data/tls-rsa`. Later starts preserve a
+complete credential set. The generated certificates use RSA with Digital
+Signature and Key Encipherment usage for SR OS compatibility.
+
+### Copy generated credentials to CF3
+
+Run these commands on the Containerlab host after MiniRPKI has started.
+Replace `<lab-name>` and `<node-name>` with your Containerlab lab and Nokia
+node names. `/home/sros/flash3` is the SR OS container path for `cf3:`; it
+does not change with the node name.
+
+```sh
+docker cp minirpki-data/tls-rsa/ca.pem \
+  clab-<lab-name>-<node-name>:/home/sros/flash3/ca.pem
+
+docker cp minirpki-data/tls-rsa/router.pem \
+  clab-<lab-name>-<node-name>:/home/sros/flash3/router.pem
+
+docker cp minirpki-data/tls-rsa/router-key.pem \
+  clab-<lab-name>-<node-name>:/home/sros/flash3/router-key.pem
+```
+
+Inside SR OS, these files appear as `cf3:\ca.pem`, `cf3:\router.pem`, and
+`cf3:\router-key.pem`. Do not copy `server-key.pem`; it is MiniRPKI's private
+key and stays in `minirpki-data/tls-rsa`.
+
+### Nokia TLS RTR session
+
+First create a Nokia TLS client profile named `rpki-tls-client-profile`. It
+must use `cf3:\router.pem` and `cf3:\router-key.pem` as the router identity,
+and trust `cf3:\ca.pem` for the MiniRPKI server certificate. Detailed Nokia
+TLS, certificate-profile, and trust-anchor configuration is intentionally
+excluded from this guide because it varies by SR OS release and local PKI
+policy.
+
+Need a Nokia SR OS TLS reference configuration? Open a GitHub Issue with your
+SR OS release, Containerlab topology details, and relevant non-sensitive log
+output. Do not publish private keys, certificates, passwords, or production
+configuration.
+
+Then configure the RPKI session for the TLS port and bind that profile:
+
+```text
+/configure router "Base" origin-validation rpki-session 172.31.1.2 local-address 172.31.1.1
+/configure router "Base" origin-validation rpki-session 172.31.1.2 port 324
+/configure router "Base" origin-validation rpki-session 172.31.1.2 tls-transport-security tls-client-profile "rpki-tls-client-profile"
+/configure router "Base" origin-validation rpki-session 172.31.1.2 tls-transport-security server-san-dns-auth "minirpki.lab"
+/configure router "Base" origin-validation rpki-session 172.31.1.2 admin-state enable
+```
+
+The server DNS name must match `MINIRPKI_TLS_SERVER_DNS`; it authenticates the
+server certificate SAN and is not DNS resolution. Verify the TLS session with:
+
+```text
+show router origin-validation rpki-session
+show router origin-validation database
+```
+
+### Use certificates you already have
+
+Keep `MINIRPKI_TLS_BOOTSTRAP: "true"`; it selects TLS mode whether the
+credentials are generated or supplied by you. Put your existing files in the
+selected TLS directory with these fixed names:
+
+```text
+minirpki-data/tls-rsa/ca.pem
+minirpki-data/tls-rsa/server.pem
+minirpki-data/tls-rsa/server-key.pem
+```
+
+`ca.pem` must contain the CA that issued router client certificates. On boot,
+MiniRPKI uses this complete three-file set as-is. It creates lab credentials
+only when all three files are absent. A partial set is rejected so it cannot
+silently mix your PKI with generated files. The router certificate must have
+an IP SAN matching the router's actual RTR source address.

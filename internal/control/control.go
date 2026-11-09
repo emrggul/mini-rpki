@@ -32,7 +32,11 @@ type Status struct {
 type API struct {
 	Store *vrp.Store
 	RTR   *rtr.Server
-	TLS   *rtr.Server
+	// TLS says that RTR is served by a mutual-TLS listener rather than a
+	// plaintext TCP listener. There is deliberately only one RTR transport per
+	// process: this prevents a TLS-enabled lab from accidentally retaining an
+	// unauthenticated listener.
+	TLS bool
 }
 
 func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -62,9 +66,8 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		session, serial, rs := a.Store.State()
 		clients := a.RTR.Clients()
 		tlsListener := ""
-		if a.TLS != nil {
-			clients = append(clients, a.TLS.Clients()...)
-			tlsListener = a.TLS.ListenerAddress()
+		if a.TLS {
+			tlsListener = a.RTR.ListenerAddress()
 		}
 		result = Status{
 			Session: session, Serial: serial, Records: len(rs), Clients: clients, TLSListener: tlsListener,

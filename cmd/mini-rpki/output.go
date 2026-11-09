@@ -41,7 +41,11 @@ func renderResponse(w io.Writer, action string, data []byte, jsonOutput bool) er
 		if err := json.Unmarshal(data, &info); err != nil {
 			return err
 		}
-		fmt.Fprintf(w, "RTR listener: %s\n", info.Listener)
+		if info.TLS {
+			fmt.Fprintf(w, "Mutual TLS RTR listener: %s\n", info.Listener)
+		} else {
+			fmt.Fprintf(w, "RTR listener: %s\n", info.Listener)
+		}
 		table := tabwriter.NewWriter(w, 0, 4, 2, ' ', 0)
 		fmt.Fprintln(table, "IP ADDRESS\tTCP PORT\tINTERFACE")
 		for _, endpoint := range info.Endpoints {

@@ -60,9 +60,13 @@ if [ -n "$bootstrap" ] && [ "$bootstrap" != "true" ]; then
   echo "MINIRPKI_TLS_BOOTSTRAP must be true when set" >&2
   exit 1
 fi
+if [ "$bootstrap" != "true" ] && [ -n "${MINIRPKI_TLS_LISTEN:-}" ]; then
+  echo "mutual TLS requires MINIRPKI_TLS_BOOTSTRAP=true" >&2
+  exit 1
+fi
 if [ "$bootstrap" = "true" ]; then
-  if [ -z "${MINIRPKI_TLS_LISTEN:-}" ] || [ -z "${MINIRPKI_TLS_SERVER_DNS:-}" ] || [ -z "${MINIRPKI_TLS_ROUTER_IP:-}" ]; then
-    echo "TLS bootstrap requires MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_SERVER_DNS, and MINIRPKI_TLS_ROUTER_IP" >&2
+  if [ -z "${MINIRPKI_TLS_LISTEN:-}" ]; then
+    echo "TLS mode requires MINIRPKI_TLS_LISTEN" >&2
     exit 1
   fi
   case "${MINIRPKI_RTR_VERSION:-0}" in
@@ -71,23 +75,33 @@ if [ "$bootstrap" = "true" ]; then
   esac
   tls_dir=${MINIRPKI_TLS_DIR:-/data/tls}
   complete=0
-  for credential in ca.pem server.pem server-key.pem router.pem router-key.pem; do
+  for credential in ca.pem server.pem server-key.pem; do
     if [ -e "$tls_dir/$credential" ]; then
       complete=$((complete + 1))
     fi
   done
   if [ "$complete" -eq 0 ]; then
+    if [ -z "${MINIRPKI_TLS_SERVER_DNS:-}" ] || [ -z "${MINIRPKI_TLS_ROUTER_IP:-}" ]; then
+      echo "TLS credential generation requires MINIRPKI_TLS_SERVER_DNS and MINIRPKI_TLS_ROUTER_IP" >&2
+      exit 1
+    fi
     echo "creating first-start mutual-TLS credentials in $tls_dir"
     su-exec 10001:10001 mini-rpki tls init --dir "$tls_dir" --server-dns "$MINIRPKI_TLS_SERVER_DNS" --router-ip "$MINIRPKI_TLS_ROUTER_IP"
-  elif [ "$complete" -ne 5 ]; then
-    echo "TLS credential directory $tls_dir is incomplete; refusing to replace keys automatically" >&2
+  elif [ "$complete" -ne 3 ]; then
+    echo "TLS credential directory $tls_dir has a partial ca.pem/server.pem/server-key.pem set; refusing to replace files automatically" >&2
     exit 1
   else
-    # This is intentionally a lab-only data volume. Keep existing credentials
-    # host-readable when an older image created them with restrictive modes.
+    # This is intentionally a lab-only data volume. Keep the standard TLS
+    # names host-readable whether the files came from the operator's PKI or
+    # MiniRPKI's first-start generator.
     chmod 0755 "$tls_dir"
-    chmod 0644 "$tls_dir"/ca.pem "$tls_dir"/server.pem "$tls_dir"/server-key.pem "$tls_dir"/router.pem "$tls_dir"/router-key.pem
-    for credential in ca.pem server.pem server-key.pem router.pem router-key.pem; do
+    chmod 0644 "$tls_dir"/ca.pem "$tls_dir"/server.pem "$tls_dir"/server-key.pem
+    for credential in router.pem router-key.pem; do
+      if [ -e "$tls_dir/$credential" ]; then
+        chmod 0644 "$tls_dir/$credential"
+      fi
+    done
+    for credential in ca.pem server.pem server-key.pem; do
       if ! su-exec 10001:10001 test -r "$tls_dir/$credential"; then
         echo "TLS credential $tls_dir/$credential is not readable by the MiniRPKI service user" >&2
         exit 1

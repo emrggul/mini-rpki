@@ -1,6 +1,7 @@
 package vrp
 
 import (
+	"encoding/json"
 	"net/netip"
 	"os"
 	"path/filepath"
@@ -61,6 +62,32 @@ func TestStore(t *testing.T) {
 	}
 	if _, _, _, _, ok = s.Delta(session, 999); ok {
 		t.Fatal("future serial")
+	}
+}
+
+func TestOpenMaterializesInitialDataset(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "vrps.json")
+	want := []Record{rec("192.0.2.0/24", 24, 65001)}
+	if _, err := Open(path, want); err != nil {
+		t.Fatal(err)
+	}
+	b, err := os.ReadFile(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got []Record
+	if err := json.Unmarshal(b, &got); err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 1 || got[0] != want[0] {
+		t.Fatalf("initial persistence=%v, want %v", got, want)
+	}
+	info, err := os.Stat(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if info.Mode().Perm() != 0644 {
+		t.Fatalf("initial persistence permissions=%#o, want 0644", info.Mode().Perm())
 	}
 }
 func TestHistory(t *testing.T) {

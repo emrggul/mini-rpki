@@ -73,12 +73,14 @@ func Open(path string, defaults []Record) (*Store, error) {
 	}
 	s := &Store{session: binary.BigEndian.Uint16(seed[:]), serial: 1, path: path}
 	rs := defaults
+	loaded := false
 	if path != "" {
 		b, err := os.ReadFile(path)
 		if err == nil {
 			if err = json.Unmarshal(b, &rs); err != nil {
 				return nil, err
 			}
+			loaded = true
 		} else if !os.IsNotExist(err) {
 			return nil, err
 		}
@@ -87,6 +89,14 @@ func Open(path string, defaults []Record) (*Store, error) {
 	s.records, err = Normalize(rs)
 	if err != nil {
 		return nil, err
+	}
+	// Write the initial set too, not only later CLI changes. Operators can use
+	// the resulting file as their startup dataset, provided they edit it while
+	// MiniRPKI is stopped.
+	if path != "" && !loaded {
+		if err := persist(path, s.records); err != nil {
+			return nil, err
+		}
 	}
 	s.history = []Snapshot{{s.serial, append([]Record(nil), s.records...)}}
 	return s, nil
@@ -142,32 +152,8 @@ func (s *Store) replace(rs []Record) error {
 		return nil
 	}
 	if s.path != "" {
-		if err = os.MkdirAll(filepath.Dir(s.path), 0700); err != nil {
+		if err = persist(s.path, rs); err != nil {
 			return err
-		}
-		b, _ := json.MarshalIndent(rs, "", "  ")
-		f, e := os.CreateTemp(filepath.Dir(s.path), ".vrps-*")
-		if e != nil {
-			return e
-		}
-		if e = f.Chmod(0644); e != nil {
-			f.Close()
-			return e
-		}
-		name := f.Name()
-		defer os.Remove(name)
-		if _, e = f.Write(b); e == nil {
-			e = f.Sync()
-		}
-		ce := f.Close()
-		if e != nil {
-			return e
-		}
-		if ce != nil {
-			return ce
-		}
-		if e = os.Rename(name, s.path); e != nil {
-			return e
 		}
 	}
 	old := make(map[Record]bool, len(s.records))
@@ -196,6 +182,40 @@ func (s *Store) replace(rs []Record) error {
 		s.history = s.history[1:]
 	}
 	return nil
+}
+
+// persist atomically replaces the operator dataset. The lab product makes it
+// host-readable, while the same-directory rename prevents a restart from
+// observing a partial JSON document.
+func persist(path string, rs []Record) error {
+	if err := os.MkdirAll(filepath.Dir(path), 0755); err != nil {
+		return err
+	}
+	b, err := json.MarshalIndent(rs, "", "  ")
+	if err != nil {
+		return err
+	}
+	f, err := os.CreateTemp(filepath.Dir(path), ".vrps-*")
+	if err != nil {
+		return err
+	}
+	if err = f.Chmod(0644); err != nil {
+		f.Close()
+		return err
+	}
+	name := f.Name()
+	defer os.Remove(name)
+	if _, err = f.Write(b); err == nil {
+		err = f.Sync()
+	}
+	closeErr := f.Close()
+	if err != nil {
+		return err
+	}
+	if closeErr != nil {
+		return closeErr
+	}
+	return os.Rename(name, path)
 }
 
 // Delta compares snapshots so add/remove cycles never emit duplicate announcements.

@@ -15,6 +15,7 @@ type Endpoint struct {
 type AddressInfo struct {
 	Listener  string     `json:"listener"`
 	Endpoints []Endpoint `json:"endpoints"`
+	TLS       bool       `json:"tls"`
 }
 
 // describeAddress reports bindings in the server's network namespace.
@@ -67,5 +68,7 @@ func (a API) address() (AddressInfo, error) {
 	if listener == "" {
 		return AddressInfo{}, fmt.Errorf("RTR listener is not ready")
 	}
-	return describeAddress(listener)
+	info, err := describeAddress(listener)
+	info.TLS = a.TLS
+	return info, err
 }

@@ -13,7 +13,9 @@ COPY docker/entrypoint.sh /usr/local/bin/mini-rpki-entrypoint
 RUN chmod 0755 /usr/local/bin/mini-rpki-entrypoint
 ENV ENV=/etc/mini-rpki-shell.sh
 ENV MINIRPKI_SOCKET=/run/minirpki/control.sock
-EXPOSE 8282
+# 8282 is the plaintext lab listener. 324 is the IANA-assigned RTR TLS port.
+# A process opens one transport or the other, never both.
+EXPOSE 8282 324
 VOLUME /data
 HEALTHCHECK --interval=15s --timeout=5s CMD ["mini-rpki", "status"]
 ENTRYPOINT ["/usr/local/bin/mini-rpki-entrypoint"]

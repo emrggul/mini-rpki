@@ -25,3 +25,14 @@ func TestInvalidRTRVersionCLI(t *testing.T) {
 		}
 	}
 }
+
+func TestInvalidTLSCLI(t *testing.T) {
+	for _, args := range [][]string{
+		{"serve", "--tls-cert", "server.pem"},
+		{"serve", "--rtr-version", "2", "--tls-listen", ":324", "--tls-dir", "/tls"},
+	} {
+		if err := run(args); err == nil {
+			t.Fatal("accepted", args)
+		}
+	}
+}

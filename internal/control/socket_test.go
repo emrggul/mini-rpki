@@ -21,7 +21,7 @@ func TestUnixControl(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	server := &http.Server{Handler: API{s, &rtr.Server{Store: s}}, ReadHeaderTimeout: time.Second}
+	server := &http.Server{Handler: API{Store: s, RTR: &rtr.Server{Store: s}}, ReadHeaderTimeout: time.Second}
 	done := make(chan error, 1)
 	go func() { done <- server.Serve(l) }()
 	defer func() { server.Close(); <-done }()

@@ -19,18 +19,24 @@ type Request struct {
 	Record vrp.Record `json:"record"`
 }
 type Status struct {
-	Session uint16       `json:"session"`
-	Serial  uint32       `json:"serial"`
-	Records int          `json:"records"`
-	Clients []rtr.Client `json:"clients"`
-	Version uint8        `json:"rtrVersion"`
-	Refresh uint32       `json:"refreshSeconds"`
-	Retry   uint32       `json:"retrySeconds"`
-	Expire  uint32       `json:"expireSeconds"`
+	Session     uint16       `json:"session"`
+	Serial      uint32       `json:"serial"`
+	Records     int          `json:"records"`
+	Clients     []rtr.Client `json:"clients"`
+	TLSListener string       `json:"tlsListener,omitempty"`
+	Version     uint8        `json:"rtrVersion"`
+	Refresh     uint32       `json:"refreshSeconds"`
+	Retry       uint32       `json:"retrySeconds"`
+	Expire      uint32       `json:"expireSeconds"`
 }
 type API struct {
 	Store *vrp.Store
 	RTR   *rtr.Server
+	// TLS says that RTR is served by a mutual-TLS listener rather than a
+	// plaintext TCP listener. There is deliberately only one RTR transport per
+	// process: this prevents a TLS-enabled lab from accidentally retaining an
+	// unauthenticated listener.
+	TLS bool
 }
 
 func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
@@ -58,8 +64,13 @@ func (a API) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 		result, err = a.address()
 	case "status":
 		session, serial, rs := a.Store.State()
+		clients := a.RTR.Clients()
+		tlsListener := ""
+		if a.TLS {
+			tlsListener = a.RTR.ListenerAddress()
+		}
 		result = Status{
-			Session: session, Serial: serial, Records: len(rs), Clients: a.RTR.Clients(),
+			Session: session, Serial: serial, Records: len(rs), Clients: clients, TLSListener: tlsListener,
 			Version: a.RTR.RTRVersion(), Refresh: a.RTR.RefreshInterval(), Retry: rtr.RetryInterval, Expire: rtr.ExpireInterval,
 		}
 	case "list":

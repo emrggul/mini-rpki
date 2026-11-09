@@ -54,7 +54,7 @@ mini-rpki serve --listen :8282 --data /data/vrps.json --socket /run/minirpki/con
 
 RTR v0 (RFC 6810) is the default for older router interoperability. Select RTR v1 (RFC 8210) deliberately with `--rtr-version 1` or `MINIRPKI_RTR_VERSION=1`. The selected version applies to every RTR client for that server process; changing it requires a restart. Version 0 End of Data PDUs do not contain timing parameters, while version 1 carries the configured refresh/retry/expire values.
 
-Environment equivalents: `MINIRPKI_LISTEN`, `MINIRPKI_DATA`, `MINIRPKI_SOCKET`, `MINIRPKI_REFRESH`, and `MINIRPKI_RTR_VERSION`. The container image sets `MINIRPKI_SOCKET=/run/minirpki/control.sock`, keeping the runtime socket out of the persistent `/data` volume. Refresh supports 1..599 seconds; retry/expire stay 10/600 seconds. CLI processes use `MINIRPKI_SOCKET` to find the running server. Modify records with the CLI rather than editing JSON during operation.
+Environment equivalents: `MINIRPKI_LISTEN`, `MINIRPKI_DATA`, `MINIRPKI_SOCKET`, `MINIRPKI_REFRESH`, and `MINIRPKI_RTR_VERSION`. The container image sets `MINIRPKI_SOCKET=/run/minirpki/control.sock`, keeping the runtime socket out of the persistent `/data` volume. Refresh supports 1..599 seconds; retry/expire stay 10/600 seconds. CLI processes use `MINIRPKI_SOCKET` to find the running server. The initial VRPs are written to `/data/vrps.json`; an operator may edit that file only while MiniRPKI is stopped, then restart it to load the new set.
 
 Logs record changes, serial advancement, queries, notifications, and End of Data. No runtime code downloads RPKI data or initiates Internet requests.
 
@@ -72,8 +72,9 @@ flowchart LR
 
 ## Limitations, security, and troubleshooting
 
-- RTR v0 (default) and RTR v1 IPv4/IPv6 prefix records. No Router Keys, TLS, SSH, repository downloads, or cryptographic ROA validation.
+- RTR v0 (default) and RTR v1 IPv4/IPv6 prefix records. Mutual TLS is available with either RTR version and replaces the plaintext RTR listener; no Router Keys, SSH, repository downloads, or cryptographic ROA validation.
 - Trust lab clients only. Input PDUs are capped at 4096 bytes; writes time out after ten seconds and idle RTR reads after two hours. No connection-count quota is implemented.
+- The persistent `/data` bind mount, including generated TLS private keys, is host-readable by design. Use MiniRPKI only on a trusted lab host.
 - No cache session: check port reachability and the router's RPKI configuration. A TCP connection alone does not prove synchronization.
 - Failed JSON reads prevent startup; failed persistence rejects updates without changing served state. Use one process per data directory. Power-loss durability depends on filesystem behavior.
 - The image uses an ephemeral runtime socket. In Containerlab mode it removes a stale runtime socket before starting its sole server; JSON VRPs remain in `/data`.

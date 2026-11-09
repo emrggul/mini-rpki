@@ -64,7 +64,7 @@ management address is separate and is not the router's RTR endpoint.
 RTR v0 (RFC 6810) is the default. To use RTR v1 (RFC 8210), uncomment
 `MINIRPKI_RTR_VERSION: "1"` in the `env:` block above and redeploy.
 
-### Experimental mutual TLS (RTR v1 only)
+### Experimental mutual TLS (RTR v0 or v1)
 
 MiniRPKI can also run an RFC 8210-style mutual-TLS listener. It is not part
 of the default quick-start path and has not yet been verified against a router
@@ -72,7 +72,8 @@ in this release branch. Add these values to the MiniRPKI node's `env:` block
 before its first deployment:
 
 ```yaml
-MINIRPKI_RTR_VERSION: "1"
+# Nokia SR OS uses RTR v0. Use "1" for an RTR v1 client.
+MINIRPKI_RTR_VERSION: "0"
 MINIRPKI_TLS_LISTEN: "172.31.1.2:324"
 MINIRPKI_TLS_BOOTSTRAP: "true"
 MINIRPKI_TLS_SERVER_DNS: "minirpki.lab"

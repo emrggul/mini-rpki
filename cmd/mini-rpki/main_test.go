@@ -29,7 +29,7 @@ func TestInvalidRTRVersionCLI(t *testing.T) {
 func TestInvalidTLSCLI(t *testing.T) {
 	for _, args := range [][]string{
 		{"serve", "--tls-listen", ":324"},
-		{"serve", "--rtr-version", "0", "--tls-listen", ":324", "--tls-cert", "server.pem", "--tls-key", "server-key.pem", "--tls-client-ca", "ca.pem"},
+		{"serve", "--rtr-version", "2", "--tls-listen", ":324", "--tls-cert", "server.pem", "--tls-key", "server-key.pem", "--tls-client-ca", "ca.pem"},
 	} {
 		if err := run(args); err == nil {
 			t.Fatal("accepted", args)

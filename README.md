@@ -72,7 +72,7 @@ flowchart LR
 
 ## Limitations, security, and troubleshooting
 
-- RTR v0 (default) and RTR v1 IPv4/IPv6 prefix records. Experimental mutual TLS is available for RTR v1; no Router Keys, SSH, repository downloads, or cryptographic ROA validation. TLS router interoperability has not yet been claimed for a public release.
+- RTR v0 (default) and RTR v1 IPv4/IPv6 prefix records. Experimental mutual TLS is available with either RTR version; no Router Keys, SSH, repository downloads, or cryptographic ROA validation. TLS router interoperability has not yet been claimed for a public release.
 - Trust lab clients only. Input PDUs are capped at 4096 bytes; writes time out after ten seconds and idle RTR reads after two hours. No connection-count quota is implemented.
 - No cache session: check port reachability and the router's RPKI configuration. A TCP connection alone does not prove synchronization.
 - Failed JSON reads prevent startup; failed persistence rejects updates without changing served state. Use one process per data directory. Power-loss durability depends on filesystem behavior.

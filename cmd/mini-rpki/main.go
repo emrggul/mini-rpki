@@ -56,7 +56,7 @@ mini-rpki interface
 Example: mini-rpki add 192.0.2.0/24 --asn 65001
 Maximum length defaults to the prefix length. Remove requires the exact record.
 Output: readable tables by default; append --json for scripts.
-TLS: optional RFC 8210 mutual TLS listener; it requires RTR v1.
+TLS: optional mutual TLS listener; it supports RTR v0 (RFC 6810) and RTR v1 (RFC 8210).
 Environment: MINIRPKI_LISTEN, MINIRPKI_DATA, MINIRPKI_SOCKET, MINIRPKI_REFRESH, MINIRPKI_RTR_VERSION,
 MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_DIR, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINIRPKI_TLS_CLIENT_CA`)
 		return nil
@@ -68,7 +68,7 @@ MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_DIR, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINI
 		sock := f.String("socket", socket, "local Unix control socket")
 		refreshFlag := f.String("refresh", env("MINIRPKI_REFRESH", "5"), "RTR refresh interval in seconds (1..599)")
 		versionFlag := f.String("rtr-version", env("MINIRPKI_RTR_VERSION", "0"), "RTR protocol version: 0 (RFC 6810) or 1 (RFC 8210)")
-		tlsAddr := f.String("tls-listen", env("MINIRPKI_TLS_LISTEN", ""), "optional mutual-TLS RTR TCP address (RTR v1 only)")
+		tlsAddr := f.String("tls-listen", env("MINIRPKI_TLS_LISTEN", ""), "optional mutual-TLS RTR TCP address")
 		tlsDir := f.String("tls-dir", env("MINIRPKI_TLS_DIR", "/data/tls"), "directory containing generated TLS credentials")
 		tlsCert := f.String("tls-cert", env("MINIRPKI_TLS_CERT", ""), "TLS server certificate PEM file")
 		tlsKey := f.String("tls-key", env("MINIRPKI_TLS_KEY", ""), "TLS server private-key PEM file")
@@ -93,9 +93,6 @@ MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_DIR, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINI
 			tlsConfigured = tlsConfigured || value != ""
 		}
 		if tlsConfigured {
-			if version != 1 {
-				return fmt.Errorf("TLS RTR requires --rtr-version 1")
-			}
 			if *tlsAddr == "" {
 				return fmt.Errorf("TLS RTR requires --tls-listen")
 			}
@@ -141,7 +138,7 @@ MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_DIR, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINI
 				return err
 			}
 			defer tlsListener.Close()
-			tlsServer = &rtr.Server{Store: s, Refresh: uint32(refresh), ProtocolVersion: 1}
+			tlsServer = &rtr.Server{Store: s, Refresh: uint32(refresh), ProtocolVersion: uint8(version)}
 		}
 		api := &http.Server{Handler: control.API{Store: s, RTR: server, TLS: tlsServer}, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 10 * time.Second, WriteTimeout: 10 * time.Second, IdleTimeout: 30 * time.Second, MaxHeaderBytes: 4096}
 		go func() {
@@ -160,7 +157,7 @@ MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_DIR, MINIRPKI_TLS_CERT, MINIRPKI_TLS_KEY, MINI
 		if !tlsConfigured {
 			return server.Serve(ctx, l)
 		}
-		log.Printf("LAB ONLY mutual TLS RTR version=1 listening=%s", *tlsAddr)
+		log.Printf("LAB ONLY mutual TLS RTR version=%d listening=%s", version, *tlsAddr)
 		errs := make(chan error, 2)
 		go func() { errs <- server.Serve(ctx, l) }()
 		go func() { errs <- tlsServer.Serve(ctx, tlsListener) }()

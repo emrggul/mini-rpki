@@ -64,10 +64,10 @@ if [ "$bootstrap" = "true" ]; then
     echo "TLS bootstrap requires MINIRPKI_TLS_LISTEN, MINIRPKI_TLS_SERVER_DNS, and MINIRPKI_TLS_ROUTER_IP" >&2
     exit 1
   fi
-  if [ "${MINIRPKI_RTR_VERSION:-0}" != "1" ]; then
-    echo "TLS bootstrap requires MINIRPKI_RTR_VERSION=1" >&2
-    exit 1
-  fi
+  case "${MINIRPKI_RTR_VERSION:-0}" in
+    0|1) ;;
+    *) echo "TLS bootstrap requires MINIRPKI_RTR_VERSION=0 or 1" >&2; exit 1 ;;
+  esac
   tls_dir=${MINIRPKI_TLS_DIR:-/data/tls}
   complete=0
   for credential in ca.pem server.pem server-key.pem router.pem router-key.pem; do

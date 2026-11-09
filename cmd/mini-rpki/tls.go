@@ -32,6 +32,6 @@ func runTLS(args []string) error {
 	if err != nil {
 		return err
 	}
-	_, err = fmt.Fprintf(os.Stdout, "Created lab TLS credentials:\nCA certificate: %s\nMiniRPKI server certificate: %s\nMiniRPKI server key: %s\nRouter certificate: %s\nRouter key: %s\n\nCopy the CA certificate and router certificate/key to the router. Keep private keys secret. Configure MiniRPKI with --rtr-version 1, --tls-listen, --tls-cert, --tls-key, and --tls-client-ca.\n", files.CA, files.ServerCert, files.ServerKey, files.RouterCert, files.RouterKey)
+	_, err = fmt.Fprintf(os.Stdout, "Created lab TLS credentials:\nCA certificate: %s\nMiniRPKI server certificate: %s\nMiniRPKI server key: %s\nRouter certificate: %s\nRouter key: %s\n\nCopy the CA certificate and router certificate/key to the router. Keep private keys secret. Configure MiniRPKI with --rtr-version 0 or 1, --tls-listen, --tls-cert, --tls-key, and --tls-client-ca.\n", files.CA, files.ServerCert, files.ServerKey, files.RouterCert, files.RouterKey)
 	return err
 }

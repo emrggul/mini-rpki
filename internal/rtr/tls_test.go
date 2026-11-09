@@ -182,6 +182,47 @@ func TestRTRSessionOverMutualTLS(t *testing.T) {
 	receive(t, client, EndOfData)
 }
 
+func TestRTRv0SessionOverMutualTLS(t *testing.T) {
+	options, clientCertificate, roots := writeTLSMaterial(t, []net.IP{net.ParseIP("127.0.0.1")})
+	listener, err := ListenTLS("127.0.0.1:0", options)
+	if err != nil {
+		t.Fatal(err)
+	}
+	store, err := vrp.Open("", []vrp.Record{{Prefix: netip.MustParsePrefix("192.0.2.0/24"), MaxLen: 24, ASN: 65001}})
+	if err != nil {
+		listener.Close()
+		t.Fatal(err)
+	}
+	server := &Server{Store: store} // The zero value intentionally serves RTR v0.
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan error, 1)
+	go func() { done <- server.Serve(ctx, listener) }()
+	defer func() {
+		cancel()
+		if err := <-done; err != nil {
+			t.Error(err)
+		}
+	}()
+	client, err := tls.Dial("tcp", listener.Addr().String(), &tls.Config{ServerName: "minirpki.test", RootCAs: roots, Certificates: []tls.Certificate{clientCertificate}, MinVersion: tls.VersionTLS12})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer client.Close()
+	client.SetDeadline(time.Now().Add(5 * time.Second))
+	if err := Write(client, NewVersion(0, ResetQuery, 0)); err != nil {
+		t.Fatal(err)
+	}
+	if response := receive(t, client, CacheResponse); response.Version != 0 {
+		t.Fatalf("RTR response version=%d, want 0", response.Version)
+	}
+	if prefix := receive(t, client, IPv4); prefix.Version != 0 {
+		t.Fatalf("RTR prefix version=%d, want 0", prefix.Version)
+	}
+	if end := receive(t, client, EndOfData); end.Version != 0 || len(end.Body) != 4 {
+		t.Fatalf("RTR v0 End of Data version=%d length=%d", end.Version, len(end.Body))
+	}
+}
+
 func TestTLSOptionsRequireAllFiles(t *testing.T) {
 	if _, err := ListenTLS("127.0.0.1:0", TLSOptions{}); err == nil {
 		t.Fatal("accepted incomplete TLS options")

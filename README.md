@@ -54,7 +54,7 @@ mini-rpki serve --listen :8282 --data /data/vrps.json --socket /run/minirpki/con
 
 RTR v0 (RFC 6810) is the default for older router interoperability. Select RTR v1 (RFC 8210) deliberately with `--rtr-version 1` or `MINIRPKI_RTR_VERSION=1`. The selected version applies to every RTR client for that server process; changing it requires a restart. Version 0 End of Data PDUs do not contain timing parameters, while version 1 carries the configured refresh/retry/expire values.
 
-Environment equivalents: `MINIRPKI_LISTEN`, `MINIRPKI_DATA`, `MINIRPKI_SOCKET`, `MINIRPKI_REFRESH`, and `MINIRPKI_RTR_VERSION`. The container image sets `MINIRPKI_SOCKET=/run/minirpki/control.sock`, keeping the runtime socket out of the persistent `/data` volume. Refresh supports 1..599 seconds; retry/expire stay 10/600 seconds. CLI processes use `MINIRPKI_SOCKET` to find the running server. The initial VRPs are written to `/data/vrps.json`; an operator may edit that file only while MiniRPKI is stopped, then restart it to load the new set.
+Environment equivalents: `MINIRPKI_LISTEN`, `MINIRPKI_DATA`, `MINIRPKI_SOCKET`, `MINIRPKI_REFRESH`, and `MINIRPKI_RTR_VERSION`. The container image sets `MINIRPKI_SOCKET=/run/minirpki/control.sock`, keeping the runtime socket out of the persistent `/data` volume. Refresh supports 1..599 seconds; retry/expire stay 10/600 seconds. CLI processes use `MINIRPKI_SOCKET` to find the running server. An operator may create `/data/vrps.json` before the first deployment to seed a custom dataset. After deployment, use the CLI for record changes.
 
 Logs record changes, serial advancement, queries, notifications, and End of Data. No runtime code downloads RPKI data or initiates Internet requests.
 
@@ -73,6 +73,7 @@ flowchart LR
 ## Limitations, security, and troubleshooting
 
 - RTR v0 (default) and RTR v1 IPv4/IPv6 prefix records. Mutual TLS is available with either RTR version and replaces the plaintext RTR listener; no Router Keys, SSH, repository downloads, or cryptographic ROA validation.
+- **TLS laboratory scope:** Mutual TLS is provided for laboratory interoperability and concept validation. MiniRPKI does not claim full RFC 8210 Section 9.2 TLS compliance or production-grade PKI behavior. It does not perform CRL/OCSP revocation checking, does not enforce DNS-SAN or wildcard policy for operator-provided server certificates, and relies on router configuration to validate the cache server DNS SAN. Use only in a trusted lab.
 - Trust lab clients only. Input PDUs are capped at 4096 bytes; writes time out after ten seconds and idle RTR reads after two hours. No connection-count quota is implemented.
 - The persistent `/data` bind mount, including generated TLS private keys, is host-readable by design. Use MiniRPKI only on a trusted lab host.
 - No cache session: check port reachability and the router's RPKI configuration. A TCP connection alone does not prove synchronization.

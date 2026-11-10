@@ -145,13 +145,13 @@ Run `mini-rpki clear` inside the shell to remove every VRP before creating
 your own dataset. This change is persistent when you use the `/data` bind
 mount from the topology example.
 
-### Provide a startup dataset as JSON
+### Provide an initial dataset as JSON
 
-The first startup also writes the current records to
-`minirpki-data/vrps.json`. To supply your own dataset, stop MiniRPKI (for
-example, destroy the lab), edit that file, then deploy again. Do not edit it
-while MiniRPKI is running: the cache serves an in-memory copy, and the next
-CLI change atomically replaces the file.
+To start with your own records instead of the demonstration records, create
+`minirpki-data/vrps.json` before the first deployment. MiniRPKI loads that
+file at startup. After deployment, manage records through the MiniRPKI shell
+with `add`, `remove`, and `clear`; host-side JSON editing is not the supported
+update workflow.
 
 ```json
 [
@@ -194,6 +194,14 @@ show router origin-validation database
 Complete the plaintext quick start first. This section changes the
 MiniRPKI-to-router RTR connection to mutual TLS; it is separate from the
 ordinary router configuration above.
+
+> **TLS laboratory scope:** Mutual TLS is provided for laboratory
+> interoperability and concept validation. MiniRPKI does not claim full RFC
+> 8210 Section 9.2 TLS compliance or production-grade PKI behavior. It does
+> not perform CRL/OCSP revocation checking, does not enforce DNS-SAN or
+> wildcard policy for operator-provided server certificates, and relies on
+> router configuration to validate the cache server DNS SAN. Use only in a
+> trusted lab.
 
 Set these values in the MiniRPKI node's `env:` block, then deploy the lab:
 
